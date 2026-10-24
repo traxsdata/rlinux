@@ -61,14 +61,13 @@ impl HwRngOptions {
     /// Create a raw `struct hwrng` for these options, with the callbacks of `T`.
     ///
     /// The name in the returned `struct hwrng` points into these options (in the
-    /// [`HwRngName::Owned`] case, into the buffer they own), so the caller must keep these
-    /// options alive for as long as the hwrng is registered.
+    /// [`HwRngName::Owned`] case, into the buffer they own), so it is only valid while `self`
+    /// is alive and unmoved-from: keep these options alive for as long as the raw struct is
+    /// used. [`HwRngRegistration::register`] does not use this; it keeps the buffer itself.
     ///
-    /// The `priv` field is left zero; [`HwRngRegistration::register`] fills it in.
-    pub fn into_raw<T: Operations>(self) -> bindings::hwrng {
-        let name = self.name.as_char_ptr();
-        let quality = self.quality;
-        raw_hwrng::<T>(name, quality)
+    /// The `priv` field is left zero.
+    pub fn to_raw<T: Operations>(&self) -> bindings::hwrng {
+        raw_hwrng::<T>(self.name.as_char_ptr(), self.quality)
     }
 }
 
