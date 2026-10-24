@@ -18,18 +18,17 @@ export ARCH
 step "toolchain"
 "${MAKE[@]}" ARCH=$ARCH rustavailable
 
-step "configure: ${ARCH} defconfig + config fragment"
-FRAGMENT=ci/rlinux-ci.config
-[ -f "ci/rlinux-ci-${ARCH}.config" ] && FRAGMENT="ci/rlinux-ci-${ARCH}.config"
+step "configure: ${ARCH} defconfig + ci/rlinux-ci.config + ci/config.d/*.config"
+frags=(ci/rlinux-ci.config ci/config.d/*.config)
 "${MAKE[@]}" ARCH=$ARCH defconfig
-scripts/kconfig/merge_config.sh -m -O "$KOUT" "$KOUT/.config" "$FRAGMENT" >/dev/null
+scripts/kconfig/merge_config.sh -m -O "$KOUT" "$KOUT/.config" "${frags[@]}" >/dev/null
 "${MAKE[@]}" ARCH=$ARCH olddefconfig
 bad=0
 while IFS= read -r line; do
   case $line in CONFIG_*=*) ;; *) continue ;; esac
   grep -qxF "$line" "$KOUT/.config" || { echo "missing from final .config: $line"; bad=1; }
-done < "$FRAGMENT"
-[ "$bad" = 0 ] || die "config fragment symbols dropped by Kconfig ($FRAGMENT)"
+done < <(cat "${frags[@]}")
+[ "$bad" = 0 ] || die "config fragment symbols dropped by Kconfig"
 
 step "build (CLIPPY=1, warnings are errors)"
 "${MAKE[@]}" ARCH=$ARCH CLIPPY=1
