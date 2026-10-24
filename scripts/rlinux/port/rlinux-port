@@ -133,6 +133,10 @@ API_CALLS = [
     "INIT_WORK", "schedule_work", "cancel_work_sync", "queue_work", "INIT_DELAYED_WORK",
     "schedule_delayed_work", "atomic_set", "atomic_read", "atomic_cmpxchg", "atomic_inc",
     "spin_lock_init", "mutex_init", "wait_for_completion", "complete", "hrtimer_init",
+    "devm_reset_control_get_optional_exclusive", "reset_control_reset", "hwrng_yield",
+    "get_random_bytes", "module_param", "__raw_readl", "__raw_writel", "dev_of_node",
+    "wait_for_completion_timeout", "init_completion", "mpfs_blocking_transaction",
+    "mpfs_sys_controller_get",
     "hrtimer_setup", "hrtimer_start", "timer_setup", "mod_timer",
 ]
 
@@ -226,6 +230,31 @@ def parse(spec: str) -> Driver:
 # --------------------------------------------------------------------------
 # Rust-abstraction coverage (checked against the tree where possible)
 # --------------------------------------------------------------------------
+
+# Calls that never need a Rust abstraction (logging, helpers, macros, error plumbing).
+BENIGN_CALLS = set("""
+if for while switch return sizeof dev_err dev_info dev_warn dev_dbg dev_err_probe dev_notice pr_err
+pr_info pr_warn pr_debug pr_fmt pr_notice container_of platform_set_drvdata platform_get_drvdata
+dev_get_drvdata dev_set_drvdata to_platform_device PTR_ERR IS_ERR IS_ERR_OR_NULL ERR_PTR BIT GENMASK
+FIELD_GET FIELD_PREP min max min_t max_t clamp unlikely likely memcpy memset ARRAY_SIZE WARN_ON
+WARN_ON_ONCE BUG_ON of_match_ptr pm_ptr pm_sleep_ptr module_platform_driver module_phy_driver
+module_init module_exit MODULE_AUTHOR MODULE_DESCRIPTION MODULE_LICENSE MODULE_DEVICE_TABLE
+MODULE_ALIAS EXPORT_SYMBOL EXPORT_SYMBOL_GPL DEFINE_SIMPLE_DEV_PM_OPS SIMPLE_DEV_PM_OPS
+static_assert cpu_relax dev_name devm_kzalloc kzalloc kfree kfree_sensitive memzero_explicit
+lower_32_bits upper_32_bits cpu_to_le32 le32_to_cpu cpu_to_be32 be32_to_cpu DIV_ROUND_UP
+round_up round_down __maybe_unused __aligned __iomem __init __exit __devinit
+""".split())
+
+
+def unknown_calls(d: "Driver") -> list[str]:
+    """External calls neither modelled in RULES/API_CALLS nor benign nor defined in the file."""
+    known = set(API_CALLS) | {r.api for r in RULES} | BENIGN_CALLS | set(d.functions)
+    code = re.sub(r'"(?:\\.|[^"\\])*"', '""', d.code)   # ignore words inside strings
+    calls = set(re.findall(r"\b([A-Za-z_]\w{2,})\s*\(", code))
+    macros = set(re.findall(r"#define\s+(\w+)\(", d.code))
+    return sorted(c for c in calls - known - macros
+                  if not c.isupper() and not c.startswith(("__builtin", "rust_")))
+
 
 def tree_has(pattern: str, *paths: str) -> bool:
     for p in paths:
@@ -327,6 +356,26 @@ RULES = [
          missing_hint="no phy_trigger_machine wrapper (needed with interrupts, rlinux #24)"),
     Rule("spin_lock_irqsave", "`kernel::sync::SpinLock`"), Rule("mutex_lock", "`kernel::sync::Mutex`"),
     Rule("spin_lock", "`kernel::sync::SpinLock`"),
+    Rule("devm_reset_control_get_optional_exclusive", "`kernel::reset`", (r"reset_control", "rust/kernel/**/*.rs"),
+         missing_hint="no reset-controller abstraction (rlinux #49)"),
+    Rule("reset_control_reset", "`ResetControl::reset()`", (r"reset_control", "rust/kernel/**/*.rs"),
+         missing_hint="no reset-controller abstraction (rlinux #49)"),
+    Rule("hwrng_yield", "hwrng read context `yield_now()`", (r"hwrng_yield", "rust/kernel/hwrng.rs"),
+         missing_hint="hwrng::Operations::read can't call hwrng_yield yet (rlinux #50)"),
+    Rule("get_random_bytes", "", (r"pub fn (?:get_random_bytes|random_bytes|fill_random)", "rust/kernel/**/*.rs"),
+         missing_hint="no get_random_bytes binding in rust/kernel"),
+    Rule("module_param", "`module!` `params:` (rust/kernel/module_param.rs)"),
+    Rule("__raw_readl", "`mmio.try_read32(OFF)?` (adds barriers; same value on little-endian)"),
+    Rule("__raw_writel", "`mmio.try_write32(val, OFF)?` (adds barriers)"),
+    Rule("dev_of_node", "`dev.fwnode()`"),
+    Rule("wait_for_completion_timeout", "`Completion::wait_for_completion_timeout`",
+         (r"fn wait_for_completion_timeout", "rust/kernel/sync/completion.rs"),
+         missing_hint="Completion has no timed wait yet (rlinux #53)"),
+    Rule("init_completion", "`Completion::new()` (pin-init)"),
+    Rule("mpfs_blocking_transaction", "", (r"mpfs", "rust/kernel/**/*.rs"),
+         missing_hint="no binding for the PolarFire SoC system controller"),
+    Rule("mpfs_sys_controller_get", "", (r"mpfs", "rust/kernel/**/*.rs"),
+         missing_hint="no binding for the PolarFire SoC system controller"),
     Rule("INIT_WORK", "`kernel::workqueue` (`Work`, `impl_has_work!`, `WorkItem`)",
          (r"pub struct Work\b", "rust/kernel/workqueue.rs"),
          caution="work items: the data must be pinned and outlive the work; read the workqueue.rs module docs"),
@@ -473,13 +522,18 @@ def cmd_analyze(args) -> int:
         print("cautions:")
         for line in cautions:
             print(f"  ! {line}")
+    unk = unknown_calls(d)
+    if unk:
+        print("unrecognised calls (check by hand: is there a Rust equivalent?):")
+        print("  ? " + ", ".join(unk))
     print("gaps:" if gaps else "gaps: none")
     for line in gaps:
         print(f"  - {line}")
-    verdict = "portable" if not gaps and d.bus in ("platform", "phy") else \
+    verdict = ("portable (check the unrecognised calls)" if unk else "portable") \
+        if not gaps and d.bus in ("platform", "phy") else \
               ("needs abstraction" if gaps else f"no template for bus '{d.bus}'")
     print(f"\nverdict:     {verdict}")
-    return 0 if verdict == "portable" else 1
+    return 0 if verdict.startswith("portable") else 1
 
 
 # --------------------------------------------------------------------------
