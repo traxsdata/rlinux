@@ -71,10 +71,6 @@ source "sound/atmel/Kconfig"
 
 source "sound/spi/Kconfig"
 
-source "sound/mips/Kconfig"
-
-source "sound/sh/Kconfig"
-
 # the following will depend on the order of config.
 # here assuming USB is defined before ALSA
 source "sound/usb/Kconfig"
@@ -84,10 +80,6 @@ source "sound/firewire/Kconfig"
 # the following will depend on the order of config.
 # here assuming PCMCIA is defined before ALSA
 source "sound/pcmcia/Kconfig"
-
-source "sound/sparc/Kconfig"
-
-source "sound/parisc/Kconfig"
 
 source "sound/soc/Kconfig"
 
