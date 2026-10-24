@@ -36,7 +36,7 @@ jobs:
         run: ci/boot.sh
       - name: upload serial log
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: boot-serial-log
           path: .ci-out/boot-serial.log
