@@ -118,7 +118,7 @@ deliberately removed. Resolution is mechanical — anything under a path
 listed in `scripts/rlinux/pruned-paths.txt` stays deleted:
 
 ```sh
-xargs git rm -r -q < scripts/rlinux/pruned-paths.txt
+grep -v -e '^#' -e '^$' scripts/rlinux/pruned-paths.txt | xargs git rm -r -q --ignore-unmatch
 ```
 
 If upstream has since started referencing removed paths from files that

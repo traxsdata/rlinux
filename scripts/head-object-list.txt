@@ -6,7 +6,7 @@
 #
 # A counter approach is to control the section placement by the linker script.
 # The code marked as __HEAD goes into the ".head.text" section, which is placed
-# before the normal ".text" section:
+# before the normal ".text" section.
 #
 # If you can achieve the correct code ordering by linker script, please delete
 # the entry from this file.

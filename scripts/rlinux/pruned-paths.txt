@@ -13,7 +13,7 @@
 # Syncing with upstream: when a future sync imports paths that were
 # removed here, resolve the modify/delete conflicts by re-deleting them
 # with:
-#   xargs git rm -r -q < scripts/rlinux/pruned-paths.txt
+#   grep -v -e '^#' -e '^$' scripts/rlinux/pruned-paths.txt | xargs git rm -r -q --ignore-unmatch
 #
 # The list is authoritative: anything under a path below stays deleted.
 arch/alpha
