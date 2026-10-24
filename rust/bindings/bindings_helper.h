@@ -91,6 +91,7 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/task_work.h>
+#include <linux/timeriomem-rng.h>
 #include <linux/tracepoint.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
