@@ -30,16 +30,17 @@ jobs:
       - uses: ./.github/actions/setup
         id: setup
       # Warm runs skip recompiling the (C) kernel. The cache dir is
-      # $CI_OUT/ccache (set in ci/lib.sh). Keyed per arch on the toolchain
-      # versions and a hash of the ci/ config tree; the restore-key prefixes
-      # let a partial match be reused.
+      # $CI_OUT/ccache (set in ci/lib.sh). Cache keys are immutable, so the
+      # key ends in the commit SHA: every run saves a fresh cache, and the
+      # restore-key prefixes pick the newest one with the same toolchain and
+      # ci/ config (then any config) to start from.
       - name: ccache restore (x86_64)
         uses: actions/cache@v5
         with:
           path: .ci-out/ccache
-          key: ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}
+          key: ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-${{ github.sha }}
           restore-keys: |
-            ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg-
+            ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-
             ccache-x86_64-
       - name: build
         run: ci/build.sh
@@ -86,9 +87,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .ci-out/${{ matrix.arch }}/ccache
-          key: ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}
+          key: ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-${{ github.sha }}
           restore-keys: |
-            ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg-
+            ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-
             ccache-${{ matrix.arch }}-
       - name: cross-build ${{ matrix.arch }}
         run: ci/cross-build.sh ${{ matrix.arch }}

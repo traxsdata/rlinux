@@ -30,7 +30,7 @@ if command -v ccache >/dev/null 2>&1; then
 	export CCACHE_BASEDIR=${CCACHE_BASEDIR:-"$SRC"}
 	export CCACHE_NOHASHDIR=${CCACHE_NOHASHDIR:-1}
 	export CCACHE_SLOPPINESS=${CCACHE_SLOPPINESS:-"file_stat_matches,sysroot,include_file_ctime,system_headers"}
-	export CCACHE_SIZE=${CCACHE_SIZE:-"5G"}
+	export CCACHE_MAXSIZE=${CCACHE_MAXSIZE:-"2G"}   # 3 jobs share the 10 GB repo cache limit
 	mkdir -p "$CCACHE_DIR"
 	MAKE+=("CC=ccache $(clang_from_llvm "$LLVM")")
 fi
