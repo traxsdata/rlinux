@@ -50,6 +50,21 @@ pub enum DuplexMode {
     Unknown,
 }
 
+/// Capabilities a PHY supports.
+///
+/// Mirrors the C `.features = PHY_..._FEATURES` linkmode masks from
+/// `struct phy_driver` (`include/linux/phy.h`); [`Device::set_supported()`]
+/// copies the matching kernel mask into `phydev->supported`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Features {
+    /// Clause-22 basic capabilities (10/100 Mbps, half/full duplex).
+    Basic,
+    /// Clause-22 capabilities up to gigabit (10/100/1000 Mbps).
+    Gbit,
+    /// 10 Gigabit capabilities (10/100/1000 Mbps, 10G).
+    TenGbit,
+}
+
 /// An instance of a PHY device.
 ///
 /// Wraps the kernel's [`struct phy_device`].
@@ -185,6 +200,56 @@ impl Device {
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
         unsafe { (*phydev).duplex = v as c_int };
+    }
+
+    /// Sets the link state of the PHY.
+    pub fn set_link(&mut self, up: bool) {
+        let phydev = self.0.get();
+        // SAFETY: The struct invariant ensures that we may access
+        // this field without additional synchronization.
+        unsafe { bindings::phy_device::set_link_raw(phydev, u32::from(up)) };
+    }
+
+    /// Sets the capabilities the PHY supports.
+    ///
+    /// Does what a C driver declaring `.features = PHY_..._FEATURES` on its
+    /// `struct phy_driver` does: copies the corresponding kernel linkmode mask
+    /// (`phy_basic_features`, `phy_gbit_features` or `phy_10gbit_features`) into
+    /// `phydev->supported`, the same as `linkmode_copy()` does.
+    pub fn set_supported(&mut self, f: Features) {
+        let phydev = self.0.get();
+        // SAFETY: `phydev` points to a valid `struct phy_device` by the type
+        // invariant of `Self`, so writing `supported` (a plain `[c_ulong; 2]`
+        // array, exactly what `linkmode_copy()` writes) requires no lock.
+        // The masks are initialised by `phy_init()` at core init, before any
+        // driver probe runs, and are read-only afterwards (`__ro_after_init`);
+        // copying them out is a plain array copy.
+        unsafe {
+            (*phydev).supported = match f {
+                Features::Basic => bindings::phy_basic_features,
+                Features::Gbit => bindings::phy_gbit_features,
+                Features::TenGbit => bindings::phy_10gbit_features,
+            };
+        }
+    }
+
+    /// Reads a clause-45 register directly on the MDIO bus, bypassing
+    /// phylib's MMD indirection; use only when the C driver does the same.
+    pub fn c45_read_raw(&mut self, devad: u8, regnum: u16) -> Result<u16> {
+        let phydev = self.0.get();
+        // SAFETY: `phydev` is pointing at a valid object by the type invariant of `Device`.
+        // So it's just an FFI call, open code of `mdiobus_c45_read()` with a valid `phy_device`
+        // pointer.
+        let ret = unsafe {
+            bindings::mdiobus_c45_read(
+                (*phydev).mdio.bus,
+                (*phydev).mdio.addr,
+                devad.into(),
+                regnum.into(),
+            )
+        };
+        to_result(ret)?;
+        Ok(ret as u16)
     }
 
     /// Reads a PHY register.

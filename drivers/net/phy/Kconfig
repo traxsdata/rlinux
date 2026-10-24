@@ -235,6 +235,7 @@ config CICADA_PHY
 
 config CORTINA_PHY
 	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	depends on RUST_PHYLIB_ABSTRACTIONS
 	help
 	  Currently supports the CS4340 phy.
 
