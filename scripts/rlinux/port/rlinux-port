@@ -362,7 +362,7 @@ RULES = [
          missing_hint="no reset-controller abstraction (rlinux #49)"),
     Rule("hwrng_yield", "hwrng read context `yield_now()`", (r"hwrng_yield", "rust/kernel/hwrng.rs"),
          missing_hint="hwrng::Operations::read can't call hwrng_yield yet (rlinux #50)"),
-    Rule("get_random_bytes", "", (r"pub fn (?:get_random_bytes|random_bytes|fill_random)", "rust/kernel/**/*.rs"),
+    Rule("get_random_bytes", "", (r"pub fn (?:get_random_bytes|random_bytes)", "rust/kernel/**/*.rs"),
          missing_hint="no get_random_bytes binding in rust/kernel"),
     Rule("module_param", "`module!` `params:` (rust/kernel/module_param.rs)"),
     Rule("__raw_readl", "`mmio.try_read32(OFF)?` (adds barriers; same value on little-endian)"),
