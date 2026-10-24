@@ -777,7 +777,7 @@ Documentation/arch/s390
 Documentation/arch/sh
 Documentation/arch/sparc
 Documentation/arch/xtensa
-
+Documentation/translations
 tools/arch/alpha
 tools/arch/arc
 tools/arch/arm

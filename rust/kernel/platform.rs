@@ -304,6 +304,54 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
         // returned by `platform_get_resource`.
         Some(unsafe { Resource::from_raw(resource) })
     }
+
+    /// Returns the platform-specific data stored for this device by C code
+    /// (e.g. a legacy board file passing driver-specific data through
+    /// `platform_data`), if any.
+    ///
+    /// Returns `None` if no platform data is set for the device (i.e. `dev.platform_data` is
+    /// `NULL`).
+    ///
+    /// # Safety
+    ///
+    /// - The type `T` must match the type of the value the C code stored in `platform_data`.
+    ///
+    /// - If `platform_data` is not `NULL`, the stored value must be a valid, properly aligned
+    ///   `T` and must stay valid for the lifetime of the device (the reference must not outlive
+    ///   the device).
+    ///
+    /// - While the returned reference is live, the data it points to must not be mutated through
+    ///   any other pointer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::{bindings, device::Core, platform::Device};
+    ///
+    /// /// Reads the `struct timeriomem_rng_data` provided to a platform device by a legacy
+    /// /// board file, if any.
+    /// fn read_rng_data<'bound>(
+    ///     device: &'bound Device<Core<'bound>>,
+    /// ) -> Option<&'bound bindings::timeriomem_rng_data> {
+    ///     // SAFETY: The board file for `device` stored a `struct timeriomem_rng_data` in
+    ///     // `platform_data`; the board code allocated it to live as long as the device and
+    ///     // does not access it through other references at the same time.
+    ///     unsafe { device.platform_data() }
+    /// }
+    ///
+    /// // `read_rng_data` can be used in a driver's `probe()`.
+    /// let _read = read_rng_data;
+    /// ```
+    pub unsafe fn platform_data<T>(&self) -> Option<&T> {
+        // SAFETY: `self.as_raw()` is a valid pointer to a `struct platform_device`, whose `dev`
+        // field is a valid `struct device`.
+        let data = unsafe { (*self.as_raw()).dev.platform_data.cast::<T>() };
+
+        // SAFETY: By the safety requirements of this function: if `data` is not null, it is a
+        // valid, properly aligned pointer to a `T` which stays valid for the lifetime of this
+        // device, and the data is not used through another reference while this one is live.
+        unsafe { data.as_ref() }
+    }
 }
 
 #[cfg(CONFIG_HAS_IOMEM)]

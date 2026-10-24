@@ -5944,14 +5944,6 @@ R:	Joe Perches <joe@perches.com>
 S:	Maintained
 F:	Documentation/dev-tools/checkpatch.rst
 
-CHINESE DOCUMENTATION
-M:	Alex Shi <alexs@kernel.org>
-M:	Yanteng Si <si.yanteng@linux.dev>
-R:	Dongliang Mu <dzm91@hust.edu.cn>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/alexs/linux.git
-S:	Maintained
-F:	Documentation/translations/zh_CN/
-
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
 M:	Peter Chen <peter.chen@kernel.org>
 L:	linux-usb@vger.kernel.org
@@ -7684,18 +7676,6 @@ F:	Documentation/sphinx/
 F:	tools/docs/
 F:	tools/lib/python/*
 F:	tools/unittests/*
-
-DOCUMENTATION/ITALIAN
-M:	Federico Vaga <federico.vaga@vaga.pv.it>
-L:	linux-doc@vger.kernel.org
-S:	Maintained
-F:	Documentation/translations/it_IT
-
-DOCUMENTATION/JAPANESE
-R:	Akira Yokosawa <akiyks@gmail.com>
-L:	linux-doc@vger.kernel.org
-S:	Maintained
-F:	Documentation/translations/ja_JP
 
 DONGWOON DW9714 LENS VOICE COIL DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
@@ -15154,7 +15134,6 @@ L:	loongarch@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chenhuacai/linux-loongson.git
 F:	Documentation/arch/loongarch/
-F:	Documentation/translations/zh_CN/arch/loongarch/
 F:	arch/loongarch/
 F:	drivers/*/*loongarch*
 F:	drivers/cpufreq/loongson3_cpufreq.c
@@ -21472,12 +21451,6 @@ S:	Maintained
 F:	drivers/pnp/
 F:	include/linux/pnp.h
 
-PORTUGUESE (BRAZILIAN) TRANSLATION
-M:	Daniel Pereira <danielmaraboo@gmail.com>
-L:	linux-doc@vger.kernel.org
-S:	Maintained
-F:	Documentation/translations/pt_BR/
-
 PORTWELL EC DRIVER
 M:	Yen-Chi Huang <jesse.huang@portwell.com.tw>
 L:	platform-driver-x86@vger.kernel.org
@@ -25475,12 +25448,6 @@ S:	Maintained
 F:	drivers/reset/spacemit/
 F:	include/dt-bindings/reset/spacemit,k3-resets.h
 
-SPANISH DOCUMENTATION
-M:	Carlos Bilbao <carlos.bilbao@kernel.org>
-R:	Avadhut Naik <avadhut.naik@amd.com>
-S:	Maintained
-F:	Documentation/translations/sp_SP/
-
 SPARC + UltraSPARC (sparc/sparc64)
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Andreas Larsson <andreas@gaisler.com>
@@ -27529,13 +27496,6 @@ F:	kernel/trace/*ring_buffer*.c
 F:	kernel/trace/remote*.c
 F:	tools/testing/selftests/ring-buffer/
 
-TRADITIONAL CHINESE DOCUMENTATION
-M:	Chen-Yu Yeh <chenyou910331@gmail.com>
-M:	Weijie Yuan <wy@wyuan.org>
-M:	Dongliang Mu <dzm91@hust.edu.cn>
-S:	Maintained
-F:	Documentation/translations/zh_TW/
-
 TRIGGER SOURCE
 M:	David Lechner <dlechner@baylibre.com>
 S:	Maintained
@@ -27804,7 +27764,6 @@ M:	Xavier <xavier_qy@163.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/core-api/union_find.rst
-F:	Documentation/translations/zh_CN/core-api/union_find.rst
 F:	include/linux/union_find.h
 F:	lib/union_find.c
 

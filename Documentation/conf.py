@@ -159,7 +159,6 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.ifconfig",
-    "translations",
 ]
 # Since Sphinx version 3, the C function parser is more pedantic with regards
 # to type checking. Due to that, having macros at c:function cause problems.
@@ -592,12 +591,6 @@ kerneldoc_srctree = ".."
 def add_subproject_index(app, docname, content):
     # Only care about root documents
     if docname != master_doc:
-        return
-
-    # Add the index link at the root of translations, but not at the root of
-    # individual translations. They have their own language specific links.
-    rel = os.path.relpath(app.srcdir, start=kern_doc_dir).split('/')
-    if rel[0] == 'translations' and len(rel) > 1:
         return
 
     # Only add the link for SPHINXDIRS HTML builds
