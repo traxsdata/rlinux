@@ -386,6 +386,11 @@ config HW_RANDOM_HISI_TRNG
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on ARCH_STI || COMPILE_TEST
+	depends on RUST
+	# kernel::clk::Clk only exists when CONFIG_COMMON_CLK is set
+	# (rust/kernel/clk.rs); the C driver also built against the no-op
+	# clk stubs. Arch STI always selects COMMON_CLK.
+	depends on COMMON_CLK
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on STi series of SoCs.
