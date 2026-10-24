@@ -24,6 +24,11 @@ for a in sh mount uname cat grep insmod rmmod modprobe lsmod poweroff dmesg ls e
 done
 "${MAKE[@]}" INSTALL_MOD_PATH="$root" INSTALL_MOD_STRIP=1 modules_install >/dev/null
 kver=$(cat "$KOUT/include/config/kernel.release")
+# Drop-in load/unload checks: each ci/modules.d/*.txt lists module names, one
+# per line (# comments allowed). Each must modprobe and rmmod cleanly, even
+# with no matching device present.
+extra=$(cat ci/modules.d/*.txt /dev/null | sed -e 's/#.*//' | tr -s ' \t' '\n' | grep . || true)
+printf '%s\n' $extra > "$root/modules.txt"
 cat > "$root/init" <<'INIT'
 #!/bin/sh
 # Markers go to ttyS1, which is not a kernel console, so kernel messages
@@ -44,6 +49,9 @@ modprobe rust_hwrng && grep -qw rust_hwrng $hw/rng_available && m "hwrng registe
 echo rust_hwrng > $hw/rng_current && [ "$(dd if=/dev/hwrng bs=16 count=1 2>/dev/null | wc -c)" = 16 ] && m "hwrng read ok"
 rmmod rust_hwrng && ! grep -qw rust_hwrng $hw/rng_available && m "hwrng unregistered"
 dmesg | grep -q 'rust_hwrng: init' && dmesg | grep -q 'rust_hwrng: cleanup' && m "hwrng callbacks ok"
+for mod in $(cat /modules.txt); do
+  modprobe "$mod" && rmmod "$mod" && m "load $mod ok"
+done
 m "done"
 m "dmesg-begin"
 dmesg
@@ -72,9 +80,12 @@ tr -d '\r' < "$markers" || true
 fail=
 [ "$rc" = 0 ] || fail="qemu exit $rc (124 = timeout)"
 grep -qE 'Kernel panic|BUG:|Oops|WARNING: CPU|Call Trace' "$log" && fail="kernel error in serial log"
-for m in "init $kver" "virtio-blk ok" "modules.dep ok" "modprobe rust_minimal ok" \
-         "modprobe rust_print ok" "rmmod ok" "rust exit message ok" \
-         "hwrng registered" "hwrng read ok" "hwrng unregistered" "hwrng callbacks ok" "done"; do
+expected=("init $kver" "virtio-blk ok" "modules.dep ok" "modprobe rust_minimal ok"
+          "modprobe rust_print ok" "rmmod ok" "rust exit message ok"
+          "hwrng registered" "hwrng read ok" "hwrng unregistered" "hwrng callbacks ok")
+for mod in $extra; do expected+=("load $mod ok"); done
+expected+=("done")
+for m in "${expected[@]}"; do
   grep -qxF "RLINUX-CI: $m" <(tr -d '\r' < "$markers") || fail=${fail:-"missing marker: RLINUX-CI: $m"}
 done
 if [ -n "$fail" ]; then
