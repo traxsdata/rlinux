@@ -149,6 +149,22 @@ config SAMPLE_RUST_DRIVER_FAUX
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_HWRNG
+	tristate "hwrng sample"
+	depends on HW_RANDOM
+	help
+	  This option builds the Rust hwrng sample, which registers a hardware
+	  random number generator named "rust_hwrng".
+
+	  The RNG produces deterministic pseudo-random data and is not a source of
+	  real entropy; it exists to exercise the registration, callback and
+	  deregistration paths of the kernel hwrng abstraction.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_hwrng.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_DRIVER_AUXILIARY
 	tristate "Auxiliary Driver"
 	depends on PCI
