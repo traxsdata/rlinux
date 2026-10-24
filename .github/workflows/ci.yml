@@ -69,11 +69,11 @@ jobs:
   cross-build:
     name: cross-build (${{ matrix.arch }})
     runs-on: ubuntu-24.04
-    # Cross builds are slower than the native build job (~27 min cold on 16
-    # local cores; 57 min to 1h25m observed on the GitHub runners, issue #30).
-    # Ccache turns most later runs into warm runs; keep 120 min so the first
-    # (cold) run of a new cache key still fits.
-    timeout-minutes: 120
+    # Warm runs (ccache hit) take a few minutes, but any change to the merged
+    # config (most driver ports add a ci/config.d fragment) changes
+    # include/generated/autoconf.h, which every object includes, so the next
+    # run is cold: up to 1h47m for arm64 on the 4-core runners (rlinux #34).
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
