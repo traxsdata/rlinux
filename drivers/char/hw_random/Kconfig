@@ -568,6 +568,7 @@ config HW_RANDOM_CCTRNG
 config HW_RANDOM_XIPHERA
 	tristate "Xiphera FPGA based True Random Number Generator support"
 	depends on HAS_IOMEM
+	depends on RUST
 	help
 	  This driver provides kernel-side support for Xiphera True Random
 	  Number Generator Intellectual Property Core.

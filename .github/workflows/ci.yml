@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - name: build
         run: ci/build.sh
@@ -36,7 +36,7 @@ jobs:
         run: ci/boot.sh
       - name: upload serial log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: boot-serial-log
           path: .ci-out/boot-serial.log
@@ -47,7 +47,24 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - name: kunit
         run: ci/kunit.sh
+
+  cross-build:
+    name: cross-build (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    # Cross builds are slower than the native build job (no ccache benefit
+    # from previous runs): 27 min on 16 local cores -> allow 120.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # Kernel ARCH names (see ci/cross-build.sh).
+        arch: [arm64, riscv]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: cross-build ${{ matrix.arch }}
+        run: ci/cross-build.sh ${{ matrix.arch }}

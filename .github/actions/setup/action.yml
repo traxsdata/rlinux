@@ -23,7 +23,7 @@ runs:
         echo "rustc=$(scripts/min-tool-version.sh rustc)" >> "$GITHUB_OUTPUT"
         echo "bindgen=$(scripts/min-tool-version.sh bindgen)" >> "$GITHUB_OUTPUT"
     - name: cache bindgen
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.cargo/bin/bindgen
         key: bindgen-${{ steps.versions.outputs.bindgen }}-${{ runner.os }}
