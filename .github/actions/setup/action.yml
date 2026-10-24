@@ -9,7 +9,7 @@ runs:
         sudo apt-get update -qq
         sudo apt-get install -y -qq --no-install-recommends \
           clang-18 lld-18 llvm-18 libclang-18-dev bc bison flex libelf-dev libssl-dev \
-          qemu-system-x86 busybox-static file kmod
+          qemu-system-x86 busybox-static file kmod ccache
     - name: enable KVM
       shell: bash
       run: |
@@ -22,6 +22,10 @@ runs:
       run: |
         echo "rustc=$(scripts/min-tool-version.sh rustc)" >> "$GITHUB_OUTPUT"
         echo "bindgen=$(scripts/min-tool-version.sh bindgen)" >> "$GITHUB_OUTPUT"
+        # clang=LLVM version suffix (env LLVM is like "-18"); cfg=stable hash of
+        # the ci/ tree (config fragments + module lists) that the builds merge.
+        echo "clang=${LLVM#-}" >> "$GITHUB_OUTPUT"
+        echo "cfg=$(git rev-parse 'HEAD:ci' 2>/dev/null || echo none)" >> "$GITHUB_OUTPUT"
     - name: cache bindgen
       uses: actions/cache@v5
       with:
@@ -37,3 +41,15 @@ runs:
           cargo install --locked bindgen-cli --version "${{ steps.versions.outputs.bindgen }}"
         fi
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+# Exposed for the jobs' ccache cache keys (see .github/workflows/ci.yml).
+outputs:
+  rustc:
+    description: rust toolchain version (scripts/min-tool-version.sh)
+    value: ${{ steps.versions.outputs.rustc }}
+  clang:
+    description: LLVM/clang version (the env LLVM value without a leading '-')
+    value: ${{ steps.versions.outputs.clang }}
+  cfg:
+    description: git tree hash of the ci/ directory (stable config fingerprint)
+    value: ${{ steps.versions.outputs.cfg }}
