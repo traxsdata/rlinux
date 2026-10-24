@@ -122,15 +122,6 @@ to reStructuredText format, or are simply too old.
    Unsorted documentation <staging/index>
 
 
-Translations
-============
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Translations
-
-   Translations <translations/index>
-
 Indices and tables
 ==================
 
