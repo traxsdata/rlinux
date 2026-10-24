@@ -149,8 +149,11 @@ impl platform::Driver for StRngDriver {
         let request = pdev.io_request_by_index(0).ok_or(ENODEV)?;
         let mmio = request.iomap()?;
 
-        let clk = ClkOn(Clk::get(dev, None)?);
-        clk.0.prepare_enable()?;
+        let clk = Clk::get(dev, None)?;
+        clk.prepare_enable()?;
+        // Wrap only once enabled: if `prepare_enable()` failed, dropping a
+        // `ClkOn` would disable/unprepare a clock that was never enabled.
+        let clk = ClkOn(clk);
 
         let rng = KBox::new(StRng { mmio }, GFP_KERNEL)?;
 
