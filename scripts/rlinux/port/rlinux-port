@@ -1,0 +1,1006 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0
+"""rlinux-port: do the mechanical part of porting a small C driver to Rust.
+
+  rlinux-port analyze  <driver.c | REV:path>   facts + Rust-abstraction verdict
+  rlinux-port scaffold <driver.c> [--keep-c]   generate <driver>.rs, Kconfig/CI edits
+  rlinux-port compare  <REV:driver.c> <driver.rs>
+                                               register accesses C vs Rust,
+                                               leftover TODO(port) markers
+  rlinux-port api-index [--out FILE]           one-line index of rust/kernel APIs
+
+Run from the top of an rlinux tree. Function bodies are never translated:
+`scaffold` pastes each C body into the Rust stub as a comment and leaves a
+`TODO(port)` marker; translating it is the porter's job. See README.md.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+TREE = Path.cwd()
+
+
+# --------------------------------------------------------------------------
+# Reading sources
+# --------------------------------------------------------------------------
+
+def read_source(spec: str) -> tuple[str, str]:
+    """Return (path, text) for a file path or a `REV:path` git spec."""
+    if ":" in spec and not os.path.exists(spec):
+        rev, path = spec.split(":", 1)
+        text = subprocess.run(["git", "show", f"{rev}:{path}"], capture_output=True,
+                              text=True, check=True).stdout
+        return path, text
+    return spec, Path(spec).read_text()
+
+
+def strip_comments(text: str) -> str:
+    """Remove C comments, keeping line structure and string literals."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            out.append(text[i:j + 1]); i = j + 1
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2); j = n if j < 0 else j + 2
+            out.append("\n" * text.count("\n", i, j)); i = j
+        elif text.startswith("//", i):
+            j = text.find("\n", i); j = n if j < 0 else j
+            i = j
+        else:
+            out.append(c); i += 1
+    return "".join(out)
+
+
+def matching(text: str, start: int, open_c: str = "{", close_c: str = "}") -> int:
+    """Index just past the bracket matching text[start] (which is open_c)."""
+    depth, i = 0, start
+    while i < len(text):
+        if text[i] == open_c:
+            depth += 1
+        elif text[i] == close_c:
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        elif text[i] == '"':
+            i += 1
+            while i < len(text) and text[i] != '"':
+                i += 2 if text[i] == "\\" else 1
+        i += 1
+    return len(text)
+
+
+# --------------------------------------------------------------------------
+# C driver model
+# --------------------------------------------------------------------------
+
+@dataclass
+class Driver:
+    path: str
+    raw: str
+    code: str
+    bus: str = "unknown"            # platform | phy | pci | i2c | unknown
+    name: str | None = None         # driver .name
+    module: str = ""                # module (object) name
+    authors: list[str] = field(default_factory=list)
+    description: str = ""
+    license: str = ""
+    copyright: list[str] = field(default_factory=list)
+    spdx: str = "GPL-2.0"
+    defines: dict[str, str] = field(default_factory=dict)
+    functions: dict[str, str] = field(default_factory=dict)   # name -> full text
+    of_ids: list[tuple[str, str | None]] = field(default_factory=list)
+    acpi_ids: list[str] = field(default_factory=list)
+    hwrng: dict[str, str] = field(default_factory=dict)       # field -> value
+    hwrng_name_from_pdev: bool = False
+    phy_drivers: list[dict[str, str]] = field(default_factory=list)
+    probe: str | None = None
+    rev: str | None = None          # git revision the file was read from, if any
+    remove: str | None = None
+    apis: set[str] = field(default_factory=set)
+
+
+API_CALLS = [
+    "devm_platform_ioremap_resource", "devm_ioremap_resource", "platform_get_resource",
+    "devm_ioremap", "devm_clk_get", "devm_clk_get_enabled", "devm_clk_get_optional",
+    "devm_clk_get_optional_enabled", "clk_prepare_enable", "clk_disable_unprepare",
+    "clk_get_rate", "platform_get_irq", "devm_request_irq", "devm_request_threaded_irq",
+    "request_irq", "pm_runtime_enable", "pm_runtime_get_sync", "devm_pm_runtime_enable",
+    "reset_control_assert", "reset_control_deassert", "devm_reset_control_get",
+    "devm_reset_control_get_exclusive", "devm_regulator_get", "regulator_enable",
+    "of_property_read_u32", "device_property_read_u32", "of_property_read_bool",
+    "dev_get_platdata", "platform_data", "readl", "writel", "readl_relaxed", "writel_relaxed",
+    "ioread32", "iowrite32", "readb", "writeb", "readw", "writew",
+    "readl_poll_timeout", "readl_poll_timeout_atomic", "readl_relaxed_poll_timeout",
+    "readl_relaxed_poll_timeout_atomic", "readx_poll_timeout", "readx_poll_timeout_atomic",
+    "usleep_range", "msleep", "udelay", "ndelay", "fsleep", "mdelay",
+    "devm_hwrng_register", "hwrng_register", "mdiobus_c45_read", "mdiobus_c45_write",
+    "phy_read", "phy_write", "phy_read_mmd", "phy_write_mmd", "phy_modify",
+    "phy_read_paged", "phy_write_paged", "genphy_read_status", "genphy_config_aneg",
+    "genphy_soft_reset", "genphy_suspend", "genphy_resume", "phy_trigger_machine",
+    "spin_lock", "spin_lock_irqsave", "mutex_lock", "of_device_get_match_data",
+    "device_get_match_data", "dma_alloc_coherent", "devm_kzalloc", "kzalloc",
+    "INIT_WORK", "schedule_work", "cancel_work_sync", "queue_work", "INIT_DELAYED_WORK",
+    "schedule_delayed_work", "atomic_set", "atomic_read", "atomic_cmpxchg", "atomic_inc",
+    "spin_lock_init", "mutex_init", "wait_for_completion", "complete", "hrtimer_init",
+    "hrtimer_setup", "hrtimer_start", "timer_setup", "mod_timer",
+]
+
+
+C_KEYWORDS = {"if", "for", "while", "switch", "return", "else", "do", "sizeof"}
+
+
+def parse(spec: str) -> Driver:
+    path, raw = read_source(spec)
+    code = strip_comments(raw)
+    d = Driver(path=path, raw=raw, code=code)
+    d.rev = spec.split(":", 1)[0] if (":" in spec and not os.path.exists(spec)) else None
+    d.module = Path(path).stem
+
+    m = re.search(r"SPDX-License-Identifier:\s*([^\s*]+(?:\s+(?:OR|AND)\s+[^\s*]+)*)", raw)
+    if m:
+        d.spdx = m.group(1).strip()
+    d.copyright = [l.strip(" */\t") for l in raw.splitlines()[:30]
+                   if re.search(r"Copyright|\(C\)|\(c\)", l)]
+    d.authors = re.findall(r'MODULE_AUTHOR\("([^"]*)"\)', code)
+    m = re.search(r'MODULE_DESCRIPTION\("([^"]*)"\)', code)
+    d.description = m.group(1) if m else ""
+    m = re.search(r'MODULE_LICENSE\("([^"]*)"\)', code)
+    d.license = m.group(1) if m else ""
+
+    for m in re.finditer(r"^[ \t]*#define[ \t]+([A-Za-z_]\w*)[ \t]+(.+?)[ \t]*$", code, re.M):
+        if "(" not in m.group(1):
+            d.defines[m.group(1)] = m.group(2).rstrip("\\").strip()
+
+    for m in re.finditer(r"^(?=[A-Za-z_])(?:static\s+)?(?:inline\s+)?[\w \t\*]+?\b(\w+)\s*\([^;{)]*\)\s*\{",
+                         code, re.M):
+        if m.group(1) in C_KEYWORDS:
+            continue
+        start = code.index("{", m.end() - 1)
+        d.functions[m.group(1)] = code[m.start():matching(code, start)]
+
+    for m in re.finditer(r"struct\s+of_device_id\s+\w+\s*\[\]\s*(?:__maybe_unused\s*)?=\s*\{", code):
+        body = code[m.end() - 1:matching(code, m.end() - 1)]
+        for e in re.finditer(r'\.compatible\s*=\s*"([^"]+)"(?:[^}]*?\.data\s*=\s*([^,}]+))?', body):
+            d.of_ids.append((e.group(1), e.group(2).strip() if e.group(2) else None))
+    for m in re.finditer(r"struct\s+acpi_device_id\s+\w+\s*\[\]\s*=\s*\{", code):
+        body = code[m.end() - 1:matching(code, m.end() - 1)]
+        d.acpi_ids += re.findall(r'"([A-Z0-9]{4,8})"', body)
+
+    # Bus / driver struct.
+    for bus, pat in (("platform", r"struct\s+platform_driver\s+\w+\s*=\s*\{"),
+                     ("pci", r"struct\s+pci_driver\s+\w+\s*=\s*\{"),
+                     ("i2c", r"struct\s+i2c_driver\s+\w+\s*=\s*\{"),
+                     ("phy", r"struct\s+phy_driver\s+\w+\s*\[\w*\]\s*=\s*\{")):
+        m = re.search(pat, code)
+        if not m:
+            continue
+        d.bus = bus
+        body = code[m.end() - 1:matching(code, m.end() - 1)]
+        if bus == "phy":
+            inner = body[1:]
+            for e in re.finditer(r"\{", inner):
+                pass
+            i = 0
+            while True:
+                j = inner.find("{", i)
+                if j < 0:
+                    break
+                entry = inner[j:matching(inner, j)]
+                i = j + len(entry)
+                fields = dict(re.findall(r"\.(\w+)\s*=\s*([^,]+?)\s*,?\s*(?=\n|\.|\}$)", entry))
+                if fields:
+                    d.phy_drivers.append({k: v.strip().rstrip(",") for k, v in fields.items()})
+        else:
+            m2 = re.search(r'\.name\s*=\s*"([^"]+)"', body)
+            d.name = m2.group(1) if m2 else None
+            m2 = re.search(r"\.probe\s*=\s*(\w+)", body)
+            d.probe = m2.group(1) if m2 else None
+            m2 = re.search(r"\.remove(?:_new)?\s*=\s*(\w+)", body)
+            d.remove = m2.group(1) if m2 else None
+        break
+
+    # hwrng ops, both designated-initialiser and assignment styles.
+    for fld in ("name", "read", "init", "cleanup", "quality", "data_read", "data_present", "priv"):
+        m = re.search(rf"(?:\.|->|\brng\.)(?:rng\.|ops\.)?{fld}\s*=\s*([^;,\n]+)", code)
+        if m and re.search(r"struct\s+hwrng", code):
+            d.hwrng[fld] = m.group(1).strip()
+    d.hwrng_name_from_pdev = bool(re.search(r"name\s*=\s*(?:pdev|dev)->name|name\s*=\s*dev_name\(", code))
+
+    for api in API_CALLS:
+        if re.search(rf"\b{re.escape(api)}\s*\(", code) or (api == "platform_data" and "platform_data" in code):
+            d.apis.add(api)
+    return d
+
+
+# --------------------------------------------------------------------------
+# Rust-abstraction coverage (checked against the tree where possible)
+# --------------------------------------------------------------------------
+
+def tree_has(pattern: str, *paths: str) -> bool:
+    for p in paths:
+        for f in sorted(TREE.glob(p)):
+            if f.is_file() and re.search(pattern, f.read_text(errors="replace")):
+                return True
+    return False
+
+
+@dataclass
+class Rule:
+    api: str
+    ok_hint: str              # Rust equivalent when available
+    present: tuple[str, str] | None = None   # (regex, glob) proving support
+    missing_hint: str = ""
+    caution: str = ""
+
+
+RULES = [
+    Rule("devm_platform_ioremap_resource", "`pdev.io_request_by_index(N).ok_or(ENODEV)?.iomap()?` (IoMem<'bound>)"),
+    Rule("devm_ioremap_resource", "`pdev.io_request_by_index(N)...iomap()?`"),
+    Rule("readl", "`mmio.try_read32(OFF)?` (no relaxed variant; ordering is stricter, fine)"),
+    Rule("readl_relaxed", "`mmio.try_read32(OFF)?`"),
+    Rule("writel", "`mmio.try_write32(val, OFF)?` (note: value first, then offset)"),
+    Rule("writel_relaxed", "`mmio.try_write32(val, OFF)?`"),
+    Rule("readw", "`mmio.try_read16(OFF)?`"), Rule("writew", "`mmio.try_write16(val, OFF)?`"),
+    Rule("readb", "`mmio.try_read8(OFF)?`"), Rule("writeb", "`mmio.try_write8(val, OFF)?`"),
+    Rule("readl_poll_timeout_atomic", "`kernel::io::poll::read_poll_timeout_atomic(op, cond, delay, retries)`",
+         (r"fn read_poll_timeout_atomic", "rust/kernel/io/poll.rs")),
+    Rule("readl_relaxed_poll_timeout_atomic", "`kernel::io::poll::read_poll_timeout_atomic(...)`",
+         (r"fn read_poll_timeout_atomic", "rust/kernel/io/poll.rs")),
+    Rule("readx_poll_timeout_atomic", "`kernel::io::poll::read_poll_timeout_atomic(...)`",
+         (r"fn read_poll_timeout_atomic", "rust/kernel/io/poll.rs")),
+    Rule("readl_poll_timeout", "`kernel::io::poll::read_poll_timeout(...)`",
+         (r"fn read_poll_timeout\b", "rust/kernel/io/poll.rs")),
+    Rule("readx_poll_timeout", "`kernel::io::poll::read_poll_timeout(...)`",
+         (r"fn read_poll_timeout\b", "rust/kernel/io/poll.rs")),
+    Rule("usleep_range", "`kernel::time::delay::fsleep(Delta::from_micros(min))`"),
+    Rule("msleep", "`kernel::time::delay::fsleep(Delta::from_millis(n))`"),
+    Rule("fsleep", "`kernel::time::delay::fsleep(...)`"),
+    Rule("udelay", "`kernel::time::delay::udelay(Delta::from_micros(n))`"),
+    Rule("devm_clk_get_enabled", "`Clk::get(dev, name)?` then `prepare_enable()?`; wrap in a guard that "
+         "calls `disable_unprepare()` on drop ONLY after enable succeeded",
+         (r"pub struct Clk\b", "rust/kernel/clk.rs"),
+         caution="kernel::clk exists only with CONFIG_COMMON_CLK: add `depends on COMMON_CLK` "
+                 "(or cfg-gate the clock code like meson-rng.rs)"),
+    Rule("devm_clk_get_optional_enabled", "`OptionalClk::get(dev, name)?` + `prepare_enable()?`, guard after enable",
+         (r"pub struct OptionalClk\b", "rust/kernel/clk.rs"),
+         caution="CONFIG_COMMON_CLK only (see meson-rng.rs for the cfg-gated pattern)"),
+    Rule("devm_clk_get", "`Clk::get(dev, name)?`", (r"pub struct Clk\b", "rust/kernel/clk.rs")),
+    Rule("of_property_read_u32", "`dev.fwnode().ok_or(ENOENT)?.property_read::<u32>(c\"name\")`",
+         (r"fn property_read\b", "rust/kernel/device/property.rs")),
+    Rule("device_property_read_u32", "`fwnode().property_read::<u32>(...)`",
+         (r"fn property_read\b", "rust/kernel/device/property.rs")),
+    Rule("of_property_read_bool", "`fwnode().property_read_bool(c\"name\")`",
+         (r"fn property_read_bool\b", "rust/kernel/device/property.rs")),
+    Rule("device_get_match_data", "the OF table's `IdInfo` (passed to `probe`)"),
+    Rule("of_device_get_match_data", "the OF table's `IdInfo` (passed to `probe`)"),
+    Rule("dev_get_platdata", "`platform_data` accessor", (r"fn platform_data\b", "rust/kernel/platform.rs"),
+         missing_hint="no Rust platform_data accessor yet (rlinux #26)"),
+    Rule("platform_data", "`platform_data` accessor", (r"fn platform_data\b", "rust/kernel/platform.rs"),
+         missing_hint="no Rust platform_data accessor yet (rlinux #26)"),
+    Rule("pm_runtime_enable", "", (r"pm_runtime", "rust/kernel/**/*.rs"),
+         missing_hint="no runtime-PM abstraction in rust/kernel"),
+    Rule("devm_pm_runtime_enable", "", (r"pm_runtime", "rust/kernel/**/*.rs"),
+         missing_hint="no runtime-PM abstraction in rust/kernel"),
+    Rule("pm_runtime_get_sync", "", (r"pm_runtime", "rust/kernel/**/*.rs"),
+         missing_hint="no runtime-PM abstraction in rust/kernel"),
+    Rule("devm_reset_control_get", "", (r"reset_control", "rust/kernel/**/*.rs"),
+         missing_hint="no reset-controller abstraction in rust/kernel"),
+    Rule("devm_reset_control_get_exclusive", "", (r"reset_control", "rust/kernel/**/*.rs"),
+         missing_hint="no reset-controller abstraction in rust/kernel"),
+    Rule("reset_control_deassert", "", (r"reset_control", "rust/kernel/**/*.rs"),
+         missing_hint="no reset-controller abstraction in rust/kernel"),
+    Rule("platform_get_irq", "`pdev.irq_by_index(N)` / request via kernel::irq",
+         (r"fn (?:optional_)?irq_by_index", "rust/kernel/platform.rs"),
+         caution="IRQ handlers: check rust/kernel/irq/ for the request API and its context rules"),
+    Rule("devm_request_irq", "kernel::irq request API", (r"pub fn request|Registration", "rust/kernel/irq/*.rs"),
+         caution="check rust/kernel/irq/ (threaded vs hard IRQ)"),
+    Rule("devm_request_threaded_irq", "kernel::irq threaded request API",
+         (r"Threaded", "rust/kernel/irq/*.rs")),
+    Rule("devm_regulator_get", "`kernel::regulator`", (r"pub struct Regulator", "rust/kernel/regulator.rs")),
+    Rule("dma_alloc_coherent", "`kernel::dma::CoherentAllocation`", (r"CoherentAllocation", "rust/kernel/dma.rs")),
+    Rule("devm_hwrng_register", "`HwRngRegistration::register(HwRngOptions{..}, data)` held in the driver data "
+         "(plain register/unregister, see rust/kernel/hwrng.rs docs)", (r"pub struct HwRngRegistration", "rust/kernel/hwrng.rs")),
+    Rule("hwrng_register", "`HwRngRegistration::register(...)`", (r"pub struct HwRngRegistration", "rust/kernel/hwrng.rs")),
+    Rule("mdiobus_c45_read", "`dev.c45_read_raw(devad, reg)` (raw clause-45, like the C driver)",
+         (r"fn c45_read_raw", "rust/kernel/net/phy.rs")),
+    Rule("phy_read", "`dev.read(C22::new(REG))?` / `C22::vendor_specific::<REG>()`"),
+    Rule("phy_write", "`dev.write(C22::new(REG), val)?`"),
+    Rule("phy_read_mmd", "`dev.read(C45::new(Mmd::X, REG))?`"),
+    Rule("phy_write_mmd", "`dev.write(C45::new(Mmd::X, REG), val)?`"),
+    Rule("phy_read_paged", "`dev.read_paged(page, reg)`", (r"fn read_paged", "rust/kernel/net/phy.rs")),
+    Rule("genphy_read_status", "`dev.genphy_read_status::<C22>()`"),
+    Rule("genphy_config_aneg", "`dev.genphy_config_aneg()`", (r"fn genphy_config_aneg", "rust/kernel/net/phy.rs")),
+    Rule("genphy_soft_reset", "`dev.genphy_soft_reset()`"),
+    Rule("genphy_suspend", "`dev.genphy_suspend()`"), Rule("genphy_resume", "`dev.genphy_resume()`"),
+    Rule("phy_trigger_machine", "", (r"phy_trigger_machine", "rust/kernel/net/phy.rs"),
+         missing_hint="no phy_trigger_machine wrapper (needed with interrupts, rlinux #24)"),
+    Rule("spin_lock_irqsave", "`kernel::sync::SpinLock`"), Rule("mutex_lock", "`kernel::sync::Mutex`"),
+    Rule("spin_lock", "`kernel::sync::SpinLock`"),
+    Rule("INIT_WORK", "`kernel::workqueue` (`Work`, `impl_has_work!`, `WorkItem`)",
+         (r"pub struct Work\b", "rust/kernel/workqueue.rs"),
+         caution="work items: the data must be pinned and outlive the work; read the workqueue.rs module docs"),
+    Rule("schedule_work", "`kernel::workqueue::system().enqueue(...)`", (r"fn enqueue", "rust/kernel/workqueue.rs")),
+    Rule("cancel_work_sync", "", (r"fn cancel", "rust/kernel/workqueue.rs"),
+         missing_hint="no work cancellation in kernel::workqueue: unregister ordering must guarantee no queued work"),
+    Rule("INIT_DELAYED_WORK", "`kernel::workqueue` delayed work", (r"DelayedWork", "rust/kernel/workqueue.rs")),
+    Rule("atomic_set", "`kernel::sync::atomic::Atomic<T>`"), Rule("atomic_read", "`Atomic::load`"),
+    Rule("atomic_cmpxchg", "`Atomic::cmpxchg`", (r"fn cmpxchg", "rust/kernel/sync/atomic.rs")),
+    Rule("atomic_inc", "`Atomic::fetch_add`"),
+    Rule("wait_for_completion", "`kernel::sync::Completion`", (r"pub struct Completion", "rust/kernel/sync/completion.rs")),
+    Rule("hrtimer_setup", "`kernel::time::hrtimer`", (r"pub struct HrTimer\b", "rust/kernel/time/hrtimer.rs"),
+         caution="hrtimer callbacks run in hard-IRQ context; see rust/kernel/time/hrtimer.rs docs"),
+    Rule("hrtimer_init", "`kernel::time::hrtimer`", (r"pub struct HrTimer\b", "rust/kernel/time/hrtimer.rs")),
+    Rule("timer_setup", "", (r"timer_list|struct Timer\b", "rust/kernel/**/*.rs"),
+         missing_hint="no timer_list abstraction (consider hrtimer)"),
+]
+
+HWRNG_FIELDS = {"read": "required `read`", "init": "#[optional] `init`", "cleanup": "#[optional] `cleanup`",
+                "quality": "`HwRngOptions::quality`", "name": "`HwRngOptions::name` (HwRngName)",
+                "data_read": None, "data_present": None, "priv": "driver data (`T::Ptr`)"}
+
+PHY_CALLBACKS = {
+    "probe": "probe", "read_status": "read_status", "config_aneg": "config_aneg",
+    "soft_reset": "soft_reset", "suspend": "suspend", "resume": "resume",
+    "get_features": "get_features", "match_phy_device": "match_phy_device",
+    "read_mmd": "read_mmd", "write_mmd": "write_mmd", "link_change_notify": "link_change_notify",
+    "config_init": "config_init", "aneg_done": "aneg_done", "config_intr": "config_intr",
+    "handle_interrupt": "handle_interrupt", "read_page": "read_page", "write_page": "write_page",
+    "get_sset_count": "get_sset_count", "get_strings": "get_strings", "get_stats": "get_stats",
+}
+PHY_FEATURES = {"PHY_BASIC_FEATURES": "Basic", "PHY_GBIT_FEATURES": "Gbit", "PHY_10GBIT_FEATURES": "TenGbit"}
+
+
+def phy_trait_supports(cb: str) -> bool:
+    return tree_has(rf"\bfn {cb}\s*\(", "rust/kernel/net/phy.rs")
+
+
+def coverage(d: Driver) -> tuple[list[str], list[str], list[str]]:
+    ok, gaps, cautions = [], [], []
+    for r in RULES:
+        if r.api not in d.apis:
+            continue
+        supported = True if r.present is None else tree_has(r.present[0], r.present[1])
+        if supported:
+            ok.append(f"{r.api} -> {r.ok_hint}")
+            if r.caution:
+                cautions.append(f"{r.api}: {r.caution}")
+        else:
+            gaps.append(f"{r.api}: {r.missing_hint or 'no Rust equivalent found'}")
+    if d.bus == "phy":
+        for drv in d.phy_drivers:
+            for k in drv:
+                if k in PHY_CALLBACKS and k not in ("get_features",) and not phy_trait_supports(PHY_CALLBACKS[k]):
+                    gaps.append(f"phy_driver.{k}: phy::Driver has no `{k}` callback (needs abstraction)")
+            if "features" in drv:
+                feat = drv["features"]
+                if feat in PHY_FEATURES and tree_has(r"pub enum Features", "rust/kernel/net/phy.rs"):
+                    ok.append(f"features={feat} -> get_features: dev.set_supported(phy::Features::{PHY_FEATURES[feat]})")
+                else:
+                    gaps.append(f"phy_driver.features={feat}: no matching phy::Features variant")
+    if d.bus == "platform" and re.search(r"struct\s+hwrng", d.code):
+        for fld in d.hwrng:
+            if HWRNG_FIELDS.get(fld, "") is None:
+                gaps.append(f"hwrng.{fld}: legacy API, not in hwrng::Operations (convert to `read`)")
+        if not tree_has(r"pub struct HwRngRegistration", "rust/kernel/hwrng.rs"):
+            gaps.append("hwrng: no kernel::hwrng abstraction in this tree")
+    if d.bus in ("pci", "i2c", "unknown"):
+        cautions.append(f"bus '{d.bus}': no scaffold template yet (analyze only)")
+    if re.search(r"\.dev_groups\s*=|ATTRIBUTE_GROUPS\(", d.code):
+        if tree_has(r"dev_groups", "rust/kernel/**/*.rs"):
+            ok.append("dev_groups -> driver attribute groups")
+        else:
+            gaps.append("dev_groups/ATTRIBUTE_GROUPS: Rust drivers can't declare sysfs groups yet (rlinux #9)")
+    return ok, gaps, cautions
+
+
+# --------------------------------------------------------------------------
+# Kconfig / Makefile facts
+# --------------------------------------------------------------------------
+
+def sibling_text(d: Driver, name: str) -> str | None:
+    """Text of a file next to the driver, from the same revision as the driver."""
+    rel = str(Path(d.path).parent / name)
+    if d.rev:
+        r = subprocess.run(["git", "show", f"{d.rev}:{rel}"], capture_output=True, text=True)
+        return r.stdout if r.returncode == 0 else None
+    f = TREE / rel
+    return f.read_text() if f.exists() else None
+
+
+def kconfig_facts(d: Driver) -> dict:
+    p = TREE / d.path
+    facts = {"symbol": None, "makefile_line": None, "kconfig": None, "depends": [], "kblock": ""}
+    mk_text = sibling_text(d, "Makefile")
+    if mk_text is None:
+        return facts
+    for line in mk_text.splitlines():
+        m = re.match(rf"\s*obj-\$\(CONFIG_(\w+)\)\s*\+=.*\b{re.escape(p.stem)}\.o\b", line)
+        if m:
+            facts["symbol"], facts["makefile_line"] = m.group(1), line.strip()
+            break
+    kc = p.parent / "Kconfig"
+    text = sibling_text(d, "Kconfig")
+    if facts["symbol"] and text is not None:
+        m = re.search(rf"^config {facts['symbol']}\n((?:[ \t].*\n|\n)*?)(?=^\S|\Z)", text, re.M)
+        if m:
+            facts["kconfig"] = str(kc.relative_to(TREE))
+            facts["kblock"] = m.group(0)
+            facts["depends"] = [l.strip()[len("depends on "):] for l in m.group(1).splitlines()
+                                if l.strip().startswith("depends on ")]
+    return facts
+
+
+# --------------------------------------------------------------------------
+# analyze
+# --------------------------------------------------------------------------
+
+def cmd_analyze(args) -> int:
+    d = parse(args.file)
+    k = kconfig_facts(d)
+    ok, gaps, cautions = coverage(d)
+    print(f"file:        {d.path}  ({d.raw.count(chr(10))} lines)")
+    print(f"bus:         {d.bus}")
+    print(f"module:      {d.module}   driver name: {d.name or '-'}")
+    print(f"license:     {d.license}   SPDX: {d.spdx}")
+    print(f"kconfig:     CONFIG_{k['symbol']}  depends on: {'; '.join(k['depends']) or '-'}")
+    print(f"makefile:    {k['makefile_line'] or '-'}")
+    if d.of_ids:
+        print("of ids:      " + ", ".join(f"{c}{' (data ' + x + ')' if x else ''}" for c, x in d.of_ids))
+    if d.acpi_ids:
+        print("acpi ids:    " + ", ".join(d.acpi_ids))
+    if d.hwrng:
+        print("hwrng:       " + ", ".join(f"{k2}={v}" for k2, v in d.hwrng.items())
+              + ("   (name from pdev/dev: use HwRngName::Owned(dev.name().to_cstring()?))" if d.hwrng_name_from_pdev else ""))
+    for drv in d.phy_drivers:
+        print("phy driver:  " + ", ".join(f"{k2}={v}" for k2, v in drv.items()))
+    print(f"defines:     {len(d.defines)} (become `const`s)")
+    print(f"functions:   {', '.join(d.functions) or '-'}")
+    print("\nsupported:")
+    for line in ok:
+        print(f"  + {line}")
+    if cautions:
+        print("cautions:")
+        for line in cautions:
+            print(f"  ! {line}")
+    print("gaps:" if gaps else "gaps: none")
+    for line in gaps:
+        print(f"  - {line}")
+    verdict = "portable" if not gaps and d.bus in ("platform", "phy") else \
+              ("needs abstraction" if gaps else f"no template for bus '{d.bus}'")
+    print(f"\nverdict:     {verdict}")
+    return 0 if verdict == "portable" else 1
+
+
+# --------------------------------------------------------------------------
+# scaffold
+# --------------------------------------------------------------------------
+
+def rust_const(name: str, value: str, defines: dict[str, str], as_offset: bool) -> str | None:
+    v = value.strip()
+    while v.startswith("(") and v.endswith(")") and matching(v, 0, "(", ")") == len(v):
+        v = v[1:-1].strip()
+    v = re.sub(r"\bBIT\((\d+)\)", r"(1 << \1)", v)
+    m = re.fullmatch(r"GENMASK\((\d+),\s*(\d+)\)", v)
+    if m:
+        h, l = int(m.group(1)), int(m.group(2))
+        v = hex(((1 << (h - l + 1)) - 1) << l)
+    v = re.sub(r"(0[xX][0-9a-fA-F]+|\d+)[uUlL]+\b", r"\1", v)
+    if not re.fullmatch(r"[\w\s\(\)\+\-\*/<>|&~^]+", v):
+        return None
+    ty = "usize" if as_offset else "u32"
+    v = v.replace("~", "!")
+    return f"const {name}: {ty} = {v};"
+
+
+def offsets_used(code: str) -> set[str]:
+    names = set()
+    for m in re.finditer(r"\b(?:readl|writel|readl_relaxed|writel_relaxed|ioread32|iowrite32|readw|writew|readb|writeb)"
+                         r"(?:_relaxed)?\s*\(([^;]*)\)", code):
+        names.update(re.findall(r"\+\s*([A-Z_][A-Z0-9_]*)", m.group(1)))
+    return names
+
+
+def c_body_comment(text: str, indent: str) -> str:
+    return "\n".join(f"{indent}// C: {line}" if line.strip() else f"{indent}//" for line in text.strip().splitlines())
+
+
+def scaffold_platform_hwrng(d: Driver, k: dict) -> str:
+    offs = offsets_used(d.code)
+    consts = []
+    for n, v in d.defines.items():
+        c = rust_const(n, v, d.defines, n in offs)
+        consts.append(c if c else f"// TODO(port): translate `#define {n} {v}`")
+    has_clk = any(a in d.apis for a in ("devm_clk_get_enabled", "devm_clk_get_optional_enabled", "devm_clk_get"))
+    optional_clk = "devm_clk_get_optional_enabled" in d.apis
+    ops = {f: d.hwrng.get(f) for f in ("read", "init", "cleanup")}
+    s = d.of_ids
+    idinfo = "()" if all(x is None for _, x in s) else "usize"
+    uses = ["device::Core", "hwrng::{HwRngName, HwRngOptions, HwRngRegistration, Operations}",
+            "io::{mem::IoMem, Io}", "of, platform", "prelude::*"]
+    if has_clk:
+        uses.insert(0, "clk::OptionalClk" if optional_clk else "clk::Clk")
+    if any(a in d.apis for a in ("usleep_range", "msleep", "udelay", "fsleep", "mdelay", "ndelay")):
+        uses.append("time::{delay, Delta}")
+    if any("poll" in a for a in d.apis):
+        uses.append("io::poll")
+    L = []
+    L.append(f"// SPDX-License-Identifier: {d.spdx}")
+    for c in d.copyright:
+        L.append(f"// {c}")
+    L.append("")
+    L.append(f"//! Rust port of `{Path(d.path).name}`: {d.description or 'TODO(port): one-line description'}.")
+    L.append("//!")
+    L.append("//! Generated by scripts/rlinux/port/rlinux-port; resolve every port TODO marker.")
+    L.append("")
+    L.append("#![allow(dead_code, unused_imports)] // TODO(port): remove once translated")
+    L.append("")
+    L.append("use kernel::{")
+    for u in uses:
+        L.append(f"    {u},")
+    L.append("};")
+    L.append("")
+    L += consts
+    L.append("")
+    L.append("/// The driver data handed to the hwrng core.")
+    L.append("struct Rng<'a> {")
+    L.append("    mmio: IoMem<'a>,")
+    L.append("    // TODO(port): other per-device state from the C driver's private struct")
+    L.append("}")
+    L.append("")
+    L.append("#[vtable]")
+    L.append("impl<'a> Operations for Rng<'a> {")
+    L.append("    type Ptr = KBox<Self>;")
+    for fn, sig, ret in (("init", "fn init(data: &Self) -> Result", "Err(ENOSYS)"),
+                         ("cleanup", "fn cleanup(data: &Self)", ""),
+                         ("read", "fn read(data: &Self, buffer: &mut [u8], wait: bool) -> Result<usize>", "Err(ENOSYS)")):
+        cname = ops.get(fn)
+        if not cname and fn != "read":
+            continue
+        L.append("")
+        L.append(f"    {sig} {{")
+        body = d.functions.get(cname or "", "")
+        if body:
+            L.append(c_body_comment(body, "        "))
+        L.append(f"        // TODO(port): translate `{cname or 'read'}` above"
+                 + (" (return bytes written; never more than buffer.len())" if fn == "read" else ""))
+        if fn == "read":
+            L.append("        let _ = (data, buffer, wait);")
+        else:
+            L.append("        let _ = data;")
+        if ret:
+            L.append(f"        {ret}")
+        L.append("    }")
+    L.append("}")
+    L.append("")
+    if has_clk:
+        cty = "OptionalClk" if optional_clk else "Clk"
+        L.append("/// A prepared and enabled clock, disabled and unprepared on drop.")
+        L.append("/// Construct it only AFTER `prepare_enable()` succeeded.")
+        L.append(f"struct ClkOn({cty});")
+        L.append("")
+        L.append("impl Drop for ClkOn {")
+        L.append("    fn drop(&mut self) {")
+        L.append("        self.0.disable_unprepare();")
+        L.append("    }")
+        L.append("}")
+        L.append("")
+    L.append("/// The platform driver's data; fields drop in order: the hwrng is")
+    L.append("/// unregistered before anything it uses goes away.")
+    L.append("struct Data<'a> {")
+    L.append("    _rng: Pin<KBox<HwRngRegistration<Rng<'a>>>>,")
+    if has_clk:
+        L.append("    _clk: ClkOn,")
+    L.append("}")
+    L.append("")
+    L.append("struct Driver;")
+    L.append("")
+    L.append("kernel::of_device_table!(")
+    L.append("    OF_TABLE,")
+    L.append("    <Driver as platform::Driver>::IdInfo,")
+    L.append("    [")
+    for i, (comp, data) in enumerate(s):
+        info = "()" if idinfo == "()" else f"{i}"
+        note = f" // TODO(port): C .data = {data}" if data else ""
+        L.append(f"        (of::DeviceId::new(c\"{comp}\"), {info}),{note}")
+    L.append("    ]")
+    L.append(");")
+    L.append("")
+    L.append("impl platform::Driver for Driver {")
+    L.append(f"    type IdInfo = {idinfo};")
+    L.append("    type Data<'bound> = Data<'bound>;")
+    L.append("    const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);")
+    L.append("")
+    L.append("    fn probe<'bound>(")
+    L.append("        pdev: &'bound platform::Device<Core<'_>>,")
+    L.append("        id_info: Option<&'bound Self::IdInfo>,")
+    L.append("    ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {")
+    if d.probe and d.probe in d.functions:
+        L.append(c_body_comment(d.functions[d.probe], "        "))
+    L.append("        let _ = id_info;")
+    L.append("        let dev = pdev.as_ref();")
+    L.append("        let mmio = pdev.io_request_by_index(0).ok_or(ENODEV)?.iomap()?;")
+    if has_clk:
+        cty = "OptionalClk" if optional_clk else "Clk"
+        cname = re.search(r'devm_clk_get\w*\(\s*[^,]+,\s*"([^"]+)"', d.code)
+        arg = f'Some(c"{cname.group(1)}")' if cname else "None"
+        L.append(f"        let clk = {cty}::get(dev, {arg})?;")
+        L.append("        clk.prepare_enable()?;")
+        L.append("        let clk = ClkOn(clk);")
+    L.append("        // TODO(port): remaining probe steps from the C code above (resets, waits, checks)")
+    L.append("        let rng = KBox::new(Rng { mmio }, GFP_KERNEL)?;")
+    if d.hwrng_name_from_pdev:
+        L.append("        let name = HwRngName::Owned(dev.name().to_cstring()?);")
+    else:
+        L.append(f"        let name = HwRngName::Static(c\"{d.name or d.module}\"); // TODO(port): check C `.name`")
+    q = d.hwrng.get("quality", "0")
+    L.append(f"        let opts = HwRngOptions {{ name, quality: {q} }};")
+    L.append("        let rng = KBox::pin_init(HwRngRegistration::register(opts, rng), GFP_KERNEL)?;")
+    L.append("        Ok(Data {")
+    L.append("            _rng: rng,")
+    if has_clk:
+        L.append("            _clk: clk,")
+    L.append("        })")
+    L.append("    }")
+    L.append("}")
+    L.append("")
+    L.append("kernel::module_platform_driver! {")
+    L.append("    type: Driver,")
+    L.append(f"    name: \"{d.name or d.module}\",")
+    L.append(f"    authors: [{', '.join(repr_str(a) for a in d.authors) or repr_str('TODO(port)')}],")
+    L.append(f"    description: {repr_str(d.description or 'TODO(port)')},")
+    L.append(f"    license: {repr_str(d.license or 'GPL')},")
+    L.append("}")
+    return "\n".join(L) + "\n"
+
+
+def repr_str(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def phy_id_expr(drv: dict, defines: dict[str, str]) -> str:
+    pid = drv.get("phy_id", "0")
+    mask = drv.get("phy_id_mask", "0xffffffff")
+    pidv = defines.get(pid, pid)
+    if "PHY_ID_MATCH_EXACT" in pid:
+        return f"DeviceId::new_with_exact_mask({re.search(r'\((.*)\)', pid).group(1)})"
+    if "PHY_ID_MATCH_MODEL" in pid:
+        return f"DeviceId::new_with_model_mask({re.search(r'\((.*)\)', pid).group(1)})"
+    if "PHY_ID_MATCH_VENDOR" in pid:
+        return f"DeviceId::new_with_vendor_mask({re.search(r'\((.*)\)', pid).group(1)})"
+    return f"DeviceId::new_with_custom_mask({pidv}, {defines.get(mask, mask)})"
+
+
+def scaffold_phy(d: Driver, k: dict) -> str:
+    L = [f"// SPDX-License-Identifier: {d.spdx}"] + [f"// {c}" for c in d.copyright] + [""]
+    L.append(f"//! Rust port of `{Path(d.path).name}`: {d.description or 'TODO(port)'}.")
+    L.append("//!")
+    L.append("//! Generated by scripts/rlinux/port/rlinux-port; resolve every port TODO marker.")
+    L.append("")
+    L.append("#![allow(dead_code, unused_imports)] // TODO(port): remove once translated")
+    L.append("")
+    L.append("use kernel::{")
+    L.append("    net::phy::{self, reg::C22, DeviceId, Driver},")
+    L.append("    prelude::*,")
+    L.append("};")
+    L.append("")
+    structs = []
+    for i, drv in enumerate(d.phy_drivers):
+        nm = re.sub(r"\W", "", drv.get("name", f"Phy{i}").strip('"').title())
+        structs.append(f"Phy{nm}" if not nm.startswith("Phy") else nm)
+    L.append("kernel::module_phy_driver! {")
+    L.append(f"    drivers: [{', '.join(structs)}],")
+    L.append("    device_table: [")
+    for st in structs:
+        L.append(f"        DeviceId::new_with_driver::<{st}>(),")
+    L.append("    ],")
+    L.append(f"    name: \"{d.module}\",")
+    L.append(f"    authors: [{', '.join(repr_str(a) for a in d.authors) or repr_str('TODO(port)')}],")
+    L.append(f"    description: {repr_str(d.description or 'TODO(port)')},")
+    L.append(f"    license: {repr_str(d.license or 'GPL')},")
+    L.append("}")
+    L.append("")
+    for n, v in d.defines.items():
+        if n.startswith("PHY_ID_"):
+            L.append(f"const {n}: u32 = {v};")
+        else:
+            c = rust_const(n, v, d.defines, False)
+            L.append(c.replace(": u32 =", ": u16 =") if c else f"// TODO(port): translate `#define {n} {v}`")
+    for st, drv in zip(structs, d.phy_drivers):
+        L.append("")
+        L.append(f"struct {st};")
+        L.append("")
+        L.append("#[vtable]")
+        L.append(f"impl Driver for {st} {{")
+        L.append(f"    const NAME: &'static CStr = c{drv.get('name', '\"TODO\"')};")
+        L.append(f"    const PHY_DEVICE_ID: DeviceId = {phy_id_expr(drv, d.defines)};")
+        if "features" in drv and drv["features"] in PHY_FEATURES:
+            L.append("")
+            L.append("    fn get_features(dev: &mut phy::Device) -> Result {")
+            L.append(f"        // C: .features = {drv['features']}")
+            L.append(f"        dev.set_supported(phy::Features::{PHY_FEATURES[drv['features']]});")
+            L.append("        Ok(())")
+            L.append("    }")
+        sigs = {"probe": "fn probe(dev: &mut phy::Device) -> Result",
+                "read_status": "fn read_status(dev: &mut phy::Device) -> Result<u16>",
+                "config_aneg": "fn config_aneg(dev: &mut phy::Device) -> Result",
+                "soft_reset": "fn soft_reset(dev: &mut phy::Device) -> Result",
+                "suspend": "fn suspend(dev: &mut phy::Device) -> Result",
+                "resume": "fn resume(dev: &mut phy::Device) -> Result",
+                "config_init": "fn config_init(dev: &mut phy::Device) -> Result",
+                "link_change_notify": "fn link_change_notify(dev: &mut phy::Device)"}
+        for cb, sig in sigs.items():
+            if cb not in drv:
+                continue
+            cfn = drv[cb]
+            L.append("")
+            L.append(f"    {sig} {{")
+            if cfn in d.functions:
+                L.append(c_body_comment(d.functions[cfn], "        "))
+            elif cfn.startswith("genphy_") or cfn.startswith("gen10g_"):
+                L.append(f"        // C uses the generic helper `{cfn}`; call the Rust equivalent or mirror it")
+            L.append(f"        // TODO(port): translate `{cfn}`")
+            L.append("        let _ = dev;")
+            if "->" in sig:
+                L.append("        Err(ENOSYS)")
+            L.append("    }")
+        L.append("}")
+    return "\n".join(L) + "\n"
+
+
+def kconfig_edit(k: dict, bus: str, uses_clk: bool) -> str | None:
+    if not k["kconfig"] or not k["kblock"]:
+        return None
+    path = TREE / k["kconfig"]
+    text = path.read_text()
+    block = k["kblock"]
+    dep = "RUST_PHYLIB_ABSTRACTIONS" if bus == "phy" else "RUST"
+    if re.search(rf"depends on .*\b{dep}\b", block):
+        return None
+    lines = block.splitlines(keepends=True)
+    idx = max([i for i, l in enumerate(lines) if l.strip().startswith(("depends on", "tristate", "bool"))], default=1)
+    lines.insert(idx + 1, f"\tdepends on {dep}\n")
+    path.write_text(text.replace(block, "".join(lines), 1))
+    return f"{k['kconfig']}: + depends on {dep}"
+
+
+def cmd_scaffold(args) -> int:
+    d = parse(args.file)
+    k = kconfig_facts(d)
+    ok, gaps, cautions = coverage(d)
+    if gaps and not args.force:
+        print("refusing: abstraction gaps (re-run with --force to scaffold anyway):", file=sys.stderr)
+        for g in gaps:
+            print(f"  - {g}", file=sys.stderr)
+        return 1
+    if d.bus == "platform" and re.search(r"struct\s+hwrng", d.code):
+        rs = scaffold_platform_hwrng(d, k)
+    elif d.bus == "phy":
+        rs = scaffold_phy(d, k)
+    else:
+        print(f"no scaffold template for bus '{d.bus}' (analyze still works)", file=sys.stderr)
+        return 1
+    out = Path(d.path).with_suffix(".rs")
+    if out.exists() and not args.overwrite:
+        print(f"{out} exists (use --overwrite)", file=sys.stderr)
+        return 1
+    out.write_text(rs)
+    print(f"wrote {out} ({rs.count(chr(10))} lines, {rs.count('TODO(port)')} TODO(port) markers)")
+    uses_clk = any("clk" in a for a in d.apis)
+    edit = kconfig_edit(k, d.bus, uses_clk)
+    if edit:
+        print(f"edited {edit}")
+    if k["symbol"]:
+        frag = Path("ci/config.d") / f"{k['symbol'].lower().replace('_', '-')}.config"
+        lines = []
+        deps = " ".join(k["depends"])
+        if "COMPILE_TEST" in deps:
+            lines.append("CONFIG_COMPILE_TEST=y")
+        if re.search(r"\bOF\b", deps):
+            lines.append("CONFIG_OF=y")
+        if uses_clk:
+            lines.append("CONFIG_COMMON_CLK=y")
+        if d.bus == "phy":
+            lines += ["CONFIG_PHYLIB=y", "CONFIG_RUST_PHYLIB_ABSTRACTIONS=y"]
+        lines.append(f"CONFIG_{k['symbol']}=m")
+        if Path("ci/config.d").is_dir():
+            frag.write_text("\n".join(lines) + "\n")
+            Path("ci/modules.d", frag.stem + ".txt").write_text(d.module + "\n")
+            print(f"wrote {frag} and ci/modules.d/{frag.stem}.txt")
+    if not args.keep_c and Path(d.path).exists():
+        if subprocess.run(["git", "rm", "-q", "-f", d.path], check=False).returncode != 0:
+            Path(d.path).unlink(missing_ok=True)
+        print(f"git rm {d.path}  (kbuild would otherwise keep building the C file; "
+              f"read it with `git show HEAD:{d.path}`)")
+    if cautions:
+        print("cautions:")
+        for c in cautions:
+            print(f"  ! {c}")
+    print("next: translate every TODO(port), build with `LLVM=-21 ci/build.sh`, run "
+          f"`scripts/rlinux/port/rlinux-port compare HEAD:{d.path} {out}`")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# compare
+# --------------------------------------------------------------------------
+
+def split_args(argtext: str) -> list[str]:
+    """Split a call's argument text on top-level commas."""
+    out, depth, cur = [], 0, []
+    for ch in argtext:
+        if ch in "([{<":
+            depth += 1
+        elif ch in ")]}>":
+            depth -= 1
+        if ch == "," and depth == 0:
+            out.append("".join(cur).strip()); cur = []
+        else:
+            cur.append(ch)
+    if "".join(cur).strip():
+        out.append("".join(cur).strip())
+    return out
+
+
+def reg_of(expr: str) -> str:
+    """Name of the register in an address/offset expression (`base + REG`, `C22::BMCR`, `REG`)."""
+    expr = re.sub(r"\bMII_", "", expr)
+    expr = re.sub(r"C22::new\((.*)\)|C22::vendor_specific::<(.*?)>\(\)", lambda m: m.group(1) or m.group(2), expr)
+    expr = re.sub(r"C22::", "", expr)
+    caps = re.findall(r"\b([A-Z][A-Z0-9_]{1,})\b", expr)
+    if caps:
+        return caps[-1]
+    ids = re.findall(r"\b([a-z_]\w*)\b", expr)
+    return ids[-1] if ids else "?"
+
+
+# (C name, kind, index of the offset argument: -1 = last)
+C_OPS = {"readl": ("R32", -1), "readw": ("R16", -1), "readb": ("R8", -1), "ioread32": ("R32", -1),
+         "writel": ("W32", -1), "writew": ("W16", -1), "writeb": ("W8", -1), "iowrite32": ("W32", -1),
+         "phy_read": ("PHY.R", 1), "phy_write": ("PHY.W", 1), "phy_read_mmd": ("PHY.R45", 2),
+         "phy_write_mmd": ("PHY.W45", 2), "mdiobus_c45_read": ("C45.R", -1), "mdiobus_c45_write": ("C45.W", 3)}
+RS_OPS = {"read32": ("R32", 0), "read16": ("R16", 0), "read8": ("R8", 0),
+          "write32": ("W32", -1), "write16": ("W16", -1), "write8": ("W8", -1),
+          "read": ("PHY.R", 0), "write": ("PHY.W", 0), "c45_read_raw": ("C45.R", -1)}
+
+
+def accesses(text: str, is_rust: bool) -> list[str]:
+    seq = []
+    if is_rust:
+        pat = re.compile(r"\.(?:try_)?(read32|read16|read8|write32|write16|write8|read|write|c45_read_raw)(?:_relaxed)?\s*\(")
+        table = RS_OPS
+    else:
+        pat = re.compile(r"\b(readl|readw|readb|ioread32|writel|writew|writeb|iowrite32|phy_read_mmd|phy_write_mmd"
+                         r"|phy_read|phy_write|mdiobus_c45_read|mdiobus_c45_write)(?:_relaxed)?\s*\(")
+        table = C_OPS
+    # Local address variables in C (`void __iomem *cfg = base + REG;`): resolve to REG.
+    aliases = {} if is_rust else {v: r for v, r in re.findall(
+        r"\b(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", text)}
+    for m in pat.finditer(text):
+        op = m.group(1)
+        open_i = m.end() - 1
+        args = split_args(text[open_i + 1:matching(text, open_i, "(", ")") - 1])
+        kind, idx = table[op]
+        if not args:
+            continue
+        if is_rust and op in ("read", "write") and not re.search(r"C22|C45|[A-Z_]{3,}", args[0]):
+            continue
+        if is_rust and op in ("read", "write") and "C45" in args[0]:
+            kind = "PHY.R45" if op == "read" else "PHY.W45"
+        try:
+            reg = reg_of(args[idx])
+            seq.append(f"{kind}({aliases.get(reg, reg)})")
+        except IndexError:
+            seq.append(f"{kind}(?)")
+    return seq
+
+
+def cmd_compare(args) -> int:
+    d = parse(args.c)
+    _, rs = read_source(args.rust)
+    rs_code = re.sub(r"//.*", "", rs)
+    status = 0
+    c_set, r_set = set(), set()
+    print(f"register accesses ({args.c} vs {args.rust}):")
+    for name, body in d.functions.items():
+        seq = accesses(body, False)
+        if seq:
+            c_set.update(seq)
+            print(f"  C  {name}: {' '.join(seq)}")
+    for m in re.finditer(r"\bfn\s+(\w+)\s*[<(]", rs_code):
+        start = rs_code.find("{", m.end())
+        if start < 0:
+            continue
+        body = rs_code[start:matching(rs_code, start)]
+        seq = accesses(body, True)
+        if seq:
+            r_set.update(seq)
+            print(f"  RS {m.group(1)}: {' '.join(seq)}")
+    only_c, only_r = sorted(c_set - r_set), sorted(r_set - c_set)
+    if only_c:
+        status = 1
+        print("  in C only:   " + ", ".join(only_c))
+    if only_r:
+        print("  in Rust only: " + ", ".join(only_r))
+    if not only_c and not only_r:
+        print("  same set of accesses (check order per function above)")
+    c_ids = {c for c, _ in d.of_ids}
+    r_ids = set(re.findall(r'DeviceId::new\(c"([^"]+)"\)', rs))
+    if c_ids or r_ids:
+        if c_ids != r_ids:
+            status = 1
+            print(f"OF ids differ: C-only {sorted(c_ids - r_ids)}  Rust-only {sorted(r_ids - c_ids)}")
+        else:
+            print(f"OF ids: identical ({len(c_ids)})")
+    todos = [i + 1 for i, l in enumerate(rs.splitlines()) if "TODO(port)" in l]
+    if todos:
+        status = 1
+        print(f"TODO(port) left on lines: {todos}")
+    if re.search(r"\bunsafe\b", rs_code):
+        print("note: driver contains `unsafe`; every block needs a `// SAFETY:` comment")
+    return status
+
+
+# --------------------------------------------------------------------------
+# api-index
+# --------------------------------------------------------------------------
+
+def cmd_api_index(args) -> int:
+    root = TREE / "rust/kernel"
+    out = []
+    for f in sorted(root.rglob("*.rs")):
+        rel = f.relative_to(TREE)
+        cfg = None
+        impl = None
+        for no, line in enumerate(f.read_text(errors="replace").splitlines(), 1):
+            s = line.strip()
+            m = re.match(r"#\[cfg\((.+)\)\]", s)
+            if m:
+                cfg = m.group(1)
+                continue
+            m = re.match(r"(?:pub(?:\([^)]*\))?\s+)?impl\b(.*?)\{?$", s)
+            if s.startswith(("impl", "pub impl")) or (m and s.startswith("impl")):
+                impl = re.sub(r"\s*\{$", "", s)
+            if re.match(r"pub (?:const )?(?:unsafe )?(?:fn|struct|enum|trait|type|mod|const|static|macro)\b", s) \
+                    or s.startswith("macro_rules!"):
+                sig = re.sub(r"\s*\{.*$", "", s).rstrip(";")
+                ctx = f"  [{impl}]" if impl and sig.startswith(("pub fn", "pub const fn", "pub unsafe fn")) else ""
+                gate = f"  #[cfg({cfg})]" if cfg else ""
+                out.append(f"{rel}:{no}: {sig}{ctx}{gate}")
+            if s and not s.startswith("#"):
+                cfg = None
+    text = "# rust/kernel public API index (generated by rlinux-port api-index)\n" + "\n".join(out) + "\n"
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"wrote {args.out} ({len(out)} entries)")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    a = sub.add_parser("analyze"); a.add_argument("file"); a.set_defaults(fn=cmd_analyze)
+    s = sub.add_parser("scaffold"); s.add_argument("file")
+    s.add_argument("--keep-c", action="store_true", help="don't git rm the C file")
+    s.add_argument("--force", action="store_true", help="scaffold despite abstraction gaps")
+    s.add_argument("--overwrite", action="store_true"); s.set_defaults(fn=cmd_scaffold)
+    c = sub.add_parser("compare"); c.add_argument("c"); c.add_argument("rust"); c.set_defaults(fn=cmd_compare)
+    i = sub.add_parser("api-index"); i.add_argument("--out"); i.set_defaults(fn=cmd_api_index)
+    args = ap.parse_args()
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
