@@ -177,6 +177,33 @@ impl Device {
         unsafe { (*phydev).duplex = v as c_int };
     }
 
+    /// Sets the link state of the PHY.
+    pub fn set_link(&mut self, up: bool) {
+        let phydev = self.0.get();
+        // SAFETY: The struct invariant ensures that we may access
+        // this field without additional synchronization.
+        unsafe { bindings::phy_device::set_link_raw(phydev, u32::from(up)) };
+    }
+
+    /// Reads a clause-45 register directly on the MDIO bus, bypassing
+    /// phylib's MMD indirection; use only when the C driver does the same.
+    pub fn c45_read_raw(&mut self, devad: u8, regnum: u16) -> Result<u16> {
+        let phydev = self.0.get();
+        // SAFETY: `phydev` is pointing at a valid object by the type invariant of `Device`.
+        // So it's just an FFI call, open code of `mdiobus_c45_read()` with a valid `phy_device`
+        // pointer.
+        let ret = unsafe {
+            bindings::mdiobus_c45_read(
+                (*phydev).mdio.bus,
+                (*phydev).mdio.addr,
+                devad.into(),
+                regnum.into(),
+            )
+        };
+        to_result(ret)?;
+        Ok(ret as u16)
+    }
+
     /// Reads a PHY register.
     // This function reads a hardware register and updates the stats so takes `&mut self`.
     pub fn read<R: reg::Register>(&mut self, reg: R) -> Result<u16> {
