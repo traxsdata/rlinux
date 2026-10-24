@@ -178,8 +178,6 @@ foreach my $ref (keys %broken_ref) {
 	my $new =$ref;
 
 	my $basedir = ".";
-	# On translations, only seek inside the translations directory
-	$basedir  = $1 if ($ref =~ m,(Documentation/translations/[^/]+),);
 
 	# get just the basename
 	$new =~ s,.*/,,;
