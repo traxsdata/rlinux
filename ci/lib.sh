@@ -1,5 +1,6 @@
 # Shared settings for the ci/*.sh scripts (sourced, not run).
 set -euo pipefail
+shopt -s nullglob
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 SRC=$PWD
 LLVM=${LLVM:-1}

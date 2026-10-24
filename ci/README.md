@@ -22,3 +22,15 @@ Environment: `LLVM` (default `1`; e.g. `LLVM=-21` for versioned binaries),
 `QEMU_ACCEL` (default `kvm` when `/dev/kvm` is usable, else `tcg`).
 
 Locally: `ci/all.sh` (about 10 minutes with 16 cores).
+
+## Adding a driver to CI
+
+Don't edit `ci/rlinux-ci.config` or `ci/boot.sh` for a single driver. Add
+drop-in files instead, one per driver, so parallel PRs don't conflict:
+
+- `ci/config.d/<driver>.config`: the Kconfig lines (e.g. `CONFIG_HW_RANDOM_ST=m`,
+  plus `CONFIG_COMPILE_TEST=y` if the driver needs it on x86). `ci/build.sh`
+  merges every fragment and fails if any line does not survive Kconfig.
+- `ci/modules.d/<driver>.txt`: module names, one per line. `ci/boot.sh` runs
+  `modprobe` + `rmmod` for each and expects `RLINUX-CI: load <module> ok`.
+

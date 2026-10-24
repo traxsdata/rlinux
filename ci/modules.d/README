@@ -1,0 +1,5 @@
+Drop-in module load checks for ci/boot.sh: each *.txt file lists module
+names (one per line, # comments allowed). The boot test runs
+`modprobe <mod> && rmmod <mod>` for each and expects the marker
+"RLINUX-CI: load <mod> ok". Use one file per driver so parallel PRs don't
+conflict. Build the module as =m in a ci/config.d fragment.

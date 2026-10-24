@@ -1,0 +1,5 @@
+Drop-in Kconfig fragments for CI, merged after ci/rlinux-ci.config by
+ci/build.sh. One file per driver or feature (e.g. hw-random-st.config), so
+parallel PRs don't conflict. Every line must survive Kconfig with exactly the
+value given, or the build fails. Add CONFIG_COMPILE_TEST=y in your fragment
+if the driver's Kconfig needs it on x86.
