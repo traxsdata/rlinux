@@ -16,7 +16,12 @@
 # is the transitive #include closure through
 # scripts/dtc/include-prefixes/arm -> arch/arm/boot/dts.  The individual
 # arch/arm entries below (instead of "arch/arm") exist exactly so the
-# prune can be re-applied without deleting those kept files.
+# prune can be re-applied without deleting those kept files.  A second
+# exception: the arch/arm files that the arm64 kernel itself builds are
+# kept -- arch/arm/vdso/vdsomunge.c (the arm64 compat vDSO under
+# CONFIG_COMPAT_VDSO builds the host-side vdsomunge from it) and the
+# arch/arm/xen/*.c paravirt objects (enlighten, grant-table, p2m, mm)
+# that arch/arm64/xen compiles for Xen PV guests.
 #
 # Supported architectures:
 #   x86, arm64, riscv, um
@@ -158,9 +163,7 @@ arch/arm/nwfpe
 arch/arm/plat-orion
 arch/arm/probes
 arch/arm/tools
-arch/arm/vdso
 arch/arm/vfp
-arch/arm/xen
 
 arch/arm/Kbuild
 arch/arm/Kconfig

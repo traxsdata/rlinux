@@ -43,7 +43,11 @@ The other upstream architectures have been pruned from the tree:
   build Rust but are not targets. The only 32-bit ARM content kept is
   a small closure of device-tree files under `arch/arm/boot/dts/`
   that arm64's device trees `#include` through
-  `scripts/dtc/include-prefixes`.
+  `scripts/dtc/include-prefixes`, plus two pieces arm64 itself
+  builds: `arch/arm/vdso/vdsomunge.c` (the compat vDSO's host-side
+  tool under `CONFIG_COMPAT_VDSO`) and the `arch/arm/xen/*.c`
+  paravirt objects (enlighten, grant-table, p2m, mm) that
+  `arch/arm64/xen` compiles for Xen PV guests.
 
 This is a deliberate, documented narrowing of scope that falls under the
 exception of ground rule 3. The exact list of removed paths is recorded

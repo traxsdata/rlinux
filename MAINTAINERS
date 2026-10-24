@@ -29455,6 +29455,13 @@ S:	Supported
 F:	drivers/block/xen*
 F:	drivers/block/xen-blkback/*
 
+XEN HYPERVISOR ARM
+M:	Stefano Stabellini <sstabellini@kernel.org>
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/include/asm/xen/
+F:	arch/arm/xen/
+
 XEN HYPERVISOR ARM64
 M:	Stefano Stabellini <sstabellini@kernel.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
