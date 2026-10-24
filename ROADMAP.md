@@ -30,18 +30,24 @@ abstraction in `rust/kernel/`), never bundled with a driver port.
 
 ## Supported architectures
 
-Supported: **x86, arm, arm64, riscv, loongarch, powerpc, s390, um** —
-the eight architectures where Rust builds (they select `HAVE_RUST`).
+Supported: **x86, arm64, riscv, um** — the only architectures this
+project builds.
 
-The other thirteen upstream architectures (alpha, arc, csky, hexagon,
-m68k, microblaze, mips, nios2, openrisc, parisc, sh, sparc, xtensa),
-together with their arch-only drivers, sound boards and documentation,
-have been pruned from the tree (issue #5, "Diet"). This is a deliberate,
-documented narrowing of scope that falls under the exception of ground
-rule 3: a driver converted to Rust can never build on an architecture
-that does not select `HAVE_RUST`, so those ports are dead weight for this
-project. The exact list of removed paths is recorded in
-`scripts/rlinux/pruned-paths.txt`.
+The other upstream architectures have been pruned from the tree:
+
+- alpha, arc, csky, hexagon, m68k, microblaze, mips, nios2, openrisc,
+  parisc, sh, sparc, xtensa (issue #5, "Diet"): they cannot build Rust
+  (they do not select `HAVE_RUST`), so any Rust port for them would be
+  dead weight for this project.
+- arm (32-bit), loongarch, powerpc, s390 (issue #37, "Diet 2"): they
+  build Rust but are not targets. The only 32-bit ARM content kept is
+  a small closure of device-tree files under `arch/arm/boot/dts/`
+  that arm64's device trees `#include` through
+  `scripts/dtc/include-prefixes`.
+
+This is a deliberate, documented narrowing of scope that falls under the
+exception of ground rule 3. The exact list of removed paths is recorded
+in `scripts/rlinux/pruned-paths.txt`.
 
 ## Ground rules for every conversion PR
 

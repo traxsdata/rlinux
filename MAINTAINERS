@@ -2013,13 +2013,6 @@ M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
 S:	Supported
 F:	drivers/rtc/rtc-goldfish.c
 
-AOA (Apple Onboard Audio) ALSA DRIVER
-M:	Johannes Berg <johannes@sipsolutions.net>
-L:	linuxppc-dev@lists.ozlabs.org
-L:	linux-sound@vger.kernel.org
-S:	Maintained
-F:	sound/aoa/
-
 APEX EMBEDDED SYSTEMS STX104 IIO DRIVER
 M:	William Breathitt Gray <wbg@kernel.org>
 L:	linux-iio@vger.kernel.org
@@ -2351,12 +2344,6 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/arm,malidp.yaml
 F:	Documentation/gpu/afbc.rst
 F:	drivers/gpu/drm/arm/
-
-ARM MFM AND FLOPPY DRIVERS
-M:	Ian Molton <spyro@f2s.com>
-S:	Maintained
-F:	arch/arm/include/asm/floppy.h
-F:	arch/arm/mach-rpc/floppydma.S
 
 ARM PMU PROFILING AND DEBUGGING
 M:	Will Deacon <will@kernel.org>
@@ -2788,13 +2775,6 @@ F:	Documentation/devicetree/bindings/mmc/bst,c1200-sdhci.yaml
 F:	arch/arm64/boot/dts/bst/
 F:	drivers/mmc/host/sdhci-of-bst.c
 
-ARM/CALXEDA HIGHBANK ARCHITECTURE
-M:	Andre Przywara <andre.przywara@arm.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/calxeda/
-F:	arch/arm/mach-highbank/
-
 ARM/CAVIUM THUNDER NETWORK DRIVER
 M:	Sunil Goutham <sgoutham@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2838,13 +2818,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git clkdev
 F:	drivers/clk/clkdev.c
-
-ARM/CONEXANT DIGICOLOR MACHINE SUPPORT
-M:	Baruch Siach <baruch@tkos.co.il>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/cnxt/
-N:	digicolor
 
 ARM/CORESIGHT FRAMEWORK AND DRIVERS
 M:	Suzuki K Poulose <suzuki.poulose@arm.com>
@@ -2919,21 +2892,6 @@ F:	include/linux/moxtet.h
 F:	include/linux/turris-omnia-mcu-interface.h
 F:	include/linux/turris-signing-key.h
 
-ARM/FARADAY FA526 PORT
-M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.berlios.de/gemini-board
-F:	arch/arm/mm/*-fa*
-
-ARM/FOOTBRIDGE ARCHITECTURE
-M:	Russell King <linux@armlinux.org.uk>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.armlinux.org.uk/
-F:	arch/arm/include/asm/hardware/dec21285.h
-F:	arch/arm/mach-footbridge/
-
 ARM/FREESCALE IMX / MXC / LAYERSCAPE ARM ARCHITECTURE
 M:	Frank Li <Frank.Li@nxp.com>
 M:	Sascha Hauer <s.hauer@pengutronix.de>
@@ -2953,17 +2911,6 @@ N:	imx
 N:	mxs
 N:	\bmxc[^\d]
 
-ARM/FREESCALE VYBRID ARM ARCHITECTURE
-M:	Frank Li <Frank.Li@nxp.com>
-M:	Sascha Hauer <s.hauer@pengutronix.de>
-R:	Pengutronix Kernel Team <kernel@pengutronix.de>
-R:	Stefan Agner <stefan@agner.ch>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/frank.li/linux.git
-F:	arch/arm/boot/dts/nxp/vf/
-F:	arch/arm/mach-imx/*vf610*
-
 ARM/GUMSTIX MACHINE SUPPORT
 M:	Steve Sakoman <sakoman@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2978,14 +2925,6 @@ T:	git https://github.com/hisilicon/linux-hisi.git
 F:	arch/arm/boot/dts/hisilicon/
 F:	arch/arm/mach-hisi/
 F:	arch/arm64/boot/dts/hisilicon/
-
-ARM/HP JORNADA 7XX MACHINE SUPPORT
-M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
-S:	Maintained
-W:	www.jlime.com
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
-F:	arch/arm/mach-sa1100/include/mach/jornada720.h
-F:	arch/arm/mach-sa1100/jornada720.c
 
 ARM/HPE GXP ARCHITECTURE
 M:	Jean-Marie Verdun <verdun@hpe.com>
@@ -3003,14 +2942,6 @@ F:	drivers/hwmon/gxp-fan-ctrl.c
 F:	drivers/i2c/busses/i2c-gxp.c
 F:	drivers/spi/spi-gxp.c
 F:	drivers/watchdog/gxp-wdt.c
-
-ARM/IGEP MACHINE SUPPORT
-M:	Enric Balletbo i Serra <eballetbo@gmail.com>
-M:	Javier Martinez Canillas <javier@dowhile0.org>
-L:	linux-omap@vger.kernel.org
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/ti/omap/omap3-igep*
 
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
@@ -3221,15 +3152,6 @@ F:	drivers/net/ethernet/microchip/vcap/
 F:	drivers/pinctrl/pinctrl-microchip-sgpio.c
 N:	sparx5
 
-ARM/MILBEAUT ARCHITECTURE
-M:	Taichi Sugaya <sugaya.taichi@socionext.com>
-M:	Takao Orito <orito.takao@socionext.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/socionext/milbeaut*
-F:	arch/arm/mach-milbeaut/
-N:	milbeaut
-
 ARM/MORELLO PLATFORM
 M:	Vincenzo Frascino <vincenzo.frascino@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3381,13 +3303,6 @@ R:	s32@nxp.com
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/nxp,s32-dwmac.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-s32.c
-
-ARM/Orion SoC/Technologic Systems TS-78xx platform support
-M:	Alexander Clouter <alex@digriz.org.uk>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.digriz.org.uk/ts78xx/kernel
-F:	arch/arm/mach-orion5x/ts78xx-*
 
 ARM/QUALCOMM CHROMEBOOK SUPPORT
 R:	cros-qcom-dts-watchers@chromium.org
@@ -3759,15 +3674,6 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/memory/*emif*
 
-ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
-M:	Nishanth Menon <nm@ti.com>
-M:	Santosh Shilimkar <ssantosh@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ti/linux.git
-F:	arch/arm/boot/dts/ti/keystone/
-F:	arch/arm/mach-keystone/
-
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
 M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -3868,13 +3774,6 @@ F:	arch/arm64/boot/dts/arm/
 F:	drivers/clocksource/timer-versatile.c
 X:	drivers/cpufreq/vexpress-spc-cpufreq.c
 X:	Documentation/devicetree/bindings/arm/arm,vexpress-juno.yaml
-
-ARM/VFP SUPPORT
-M:	Russell King <linux@armlinux.org.uk>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.armlinux.org.uk/
-F:	arch/arm/vfp/
 
 ARM/VT8500 ARM ARCHITECTURE
 M:	Alexey Charkov <alchark@gmail.com>
@@ -4436,14 +4335,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/leds/backlight/awinic,aw99706.yaml
 F:	drivers/video/backlight/aw99706.c
 
-AXENTIA ARM DEVICES
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Orphan
-F:	arch/arm/boot/dts/microchip/at91-linea.dtsi
-F:	arch/arm/boot/dts/microchip/at91-natte.dtsi
-F:	arch/arm/boot/dts/microchip/at91-nattis-2-natte-2.dts
-F:	arch/arm/boot/dts/microchip/at91-tse850-3.dts
-
 AXENTIA ASOC DRIVERS
 L:	linux-sound@vger.kernel.org
 S:	Orphan
@@ -4840,13 +4731,6 @@ L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/arc/net/
 
-BPF JIT for ARM
-M:	Russell King <linux@armlinux.org.uk>
-M:	Puranjay Mohan <puranjay@kernel.org>
-L:	bpf@vger.kernel.org
-S:	Maintained
-F:	arch/arm/net/
-
 BPF JIT for ARM64
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Alexei Starovoitov <ast@kernel.org>
@@ -4855,13 +4739,6 @@ R:	Xu Kuohai <xukuohai@huaweicloud.com>
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
-
-BPF JIT for LOONGARCH
-M:	Tiezhu Yang <yangtiezhu@loongson.cn>
-R:	Hengqi Chen <hengqi.chen@gmail.com>
-L:	bpf@vger.kernel.org
-S:	Maintained
-F:	arch/loongarch/net/
 
 BPF JIT for MIPS (32-BIT AND 64-BIT)
 M:	Johan Almbladh <johan.almbladh@anyfinetworks.com>
@@ -4875,14 +4752,6 @@ M:	Jakub Kicinski <kuba@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/net/ethernet/netronome/nfp/bpf/
-
-BPF JIT for POWERPC (32-BIT AND 64-BIT)
-M:	Hari Bathini <hbathini@linux.ibm.com>
-M:	Christophe Leroy (CS GROUP) <chleroy@kernel.org>
-R:	Naveen N Rao <naveen@kernel.org>
-L:	bpf@vger.kernel.org
-S:	Supported
-F:	arch/powerpc/net/
 
 BPF JIT for RISC-V (32-bit)
 M:	Luke Nelson <luke.r.nels@gmail.com>
@@ -4900,15 +4769,6 @@ L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/riscv/net/
 X:	arch/riscv/net/bpf_jit_comp32.c
-
-BPF JIT for S390
-M:	Ilya Leoshkevich <iii@linux.ibm.com>
-M:	Heiko Carstens <hca@linux.ibm.com>
-M:	Vasily Gorbik <gor@linux.ibm.com>
-L:	bpf@vger.kernel.org
-S:	Supported
-F:	arch/s390/net/
-X:	arch/s390/net/pnet.c
 
 BPF JIT for SPARC (32-BIT AND 64-BIT)
 M:	David S. Miller <davem@davemloft.net>
@@ -5182,19 +5042,6 @@ N:	bcm2712
 N:	bcm283*
 N:	raspberrypi
 
-BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
-M:	Florian Fainelli <florian.fainelli@broadcom.com>
-M:	Ray Jui <rjui@broadcom.com>
-M:	Scott Branden <sbranden@broadcom.com>
-R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
-S:	Maintained
-T:	git https://github.com/broadcom/mach-bcm
-F:	arch/arm/mach-bcm/
-N:	bcm281*
-N:	bcm113*
-N:	bcm216*
-N:	kona
-
 BROADCOM BCM2835 CAMERA DRIVERS
 M:	Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
 L:	linux-media@vger.kernel.org
@@ -5227,28 +5074,6 @@ L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/brcm,bcm4908-pinctrl.yaml
 F:	drivers/pinctrl/bcm/pinctrl-bcm4908.c
-
-BROADCOM BCM5301X ARM ARCHITECTURE
-M:	Florian Fainelli <florian.fainelli@broadcom.com>
-M:	Hauke Mehrtens <hauke@hauke-m.de>
-M:	Rafał Miłecki <zajec5@gmail.com>
-R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/broadcom/bcm-ns.dtsi
-F:	arch/arm/boot/dts/broadcom/bcm470*
-F:	arch/arm/boot/dts/broadcom/bcm5301*
-F:	arch/arm/boot/dts/broadcom/bcm953012*
-F:	arch/arm/mach-bcm/bcm_5301x.c
-
-BROADCOM BCM53573 ARM ARCHITECTURE
-M:	Florian Fainelli <florian.fainelli@broadcom.com>
-M:	Rafał Miłecki <rafal@milecki.pl>
-R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/boot/dts/broadcom/bcm47189*
-F:	arch/arm/boot/dts/broadcom/bcm53573*
 
 BROADCOM BCM63XX/BCM33XX UDC DRIVER
 M:	Kevin Cernekee <cernekee@gmail.com>
@@ -6021,14 +5846,6 @@ W:	http://linuxtv.org
 T:	git git://linuxtv.org/media.git
 F:	Documentation/devicetree/bindings/media/cec/cec-gpio.yaml
 F:	drivers/media/cec/platform/cec-gpio/
-
-CELL BROADBAND ENGINE ARCHITECTURE
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Orphan
-F:	arch/powerpc/include/asm/cell*.h
-F:	arch/powerpc/include/asm/spu*.h
-F:	arch/powerpc/include/uapi/asm/spu*.h
-F:	arch/powerpc/platforms/cell/
 
 CELLWISE CW2015 BATTERY DRIVER
 M:	Tobias Schrammm <t.schramm@manjaro.org>
@@ -14390,20 +14207,6 @@ F:	arch/mips/include/asm/kvm*
 F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/kvm/
 
-KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
-M:	Madhavan Srinivasan <maddy@linux.ibm.com>
-R:	Nicholas Piggin <npiggin@gmail.com>
-L:	linuxppc-dev@lists.ozlabs.org
-L:	kvm@vger.kernel.org
-S:	Maintained (Book3S 64-bit HV)
-S:	Odd fixes (Book3S 64-bit PR)
-S:	Orphan (Book3E and 32-bit)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git topic/ppc-kvm
-F:	arch/powerpc/include/asm/kvm*
-F:	arch/powerpc/include/uapi/asm/kvm*
-F:	arch/powerpc/kernel/kvm*
-F:	arch/powerpc/kvm/
-
 KERNEL VIRTUAL MACHINE FOR RISC-V (KVM/riscv)
 M:	Anup Patel <anup@brainfault.org>
 R:	Atish Patra <atish.patra@linux.dev>
@@ -15111,18 +14914,6 @@ N:	powernv
 N:	[^a-z0-9]ps3
 N:	pseries
 
-LINUX FOR POWERPC EMBEDDED MPC5XXX
-M:	Anatolij Gustschin <agust@denx.de>
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Odd Fixes
-F:	arch/powerpc/platforms/512x/
-F:	arch/powerpc/platforms/52xx/
-
-LINUX FOR POWERPC EMBEDDED PPC4XX
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Orphan
-F:	arch/powerpc/platforms/44x/
-
 LINUX FOR POWERPC EMBEDDED PPC85XX
 M:	Scott Wood <oss@buserror.net>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -15131,13 +14922,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/scottwood/linux.git
 F:	Documentation/devicetree/bindings/cache/freescale-l2cache.txt
 F:	Documentation/devicetree/bindings/powerpc/fsl/
 F:	arch/powerpc/platforms/85xx/
-
-LINUX FOR POWERPC EMBEDDED PPC8XX AND PPC83XX
-M:	Christophe Leroy (CS GROUP) <chleroy@kernel.org>
-L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
-F:	arch/powerpc/platforms/8xx/
-F:	arch/powerpc/platforms/83xx/
 
 LINUX KERNEL DUMP TEST MODULE (LKDTM)
 M:	Kees Cook <kees@kernel.org>
@@ -18205,17 +17989,6 @@ M:	Oliver Neukum <oliver@neukum.org>
 S:	Maintained
 F:	drivers/usb/image/microtek.*
 
-MIKROTIK CRS3XX 98DX3236 BOARD SUPPORT
-M:	Luka Kovacic <luka.kovacic@sartura.hr>
-M:	Luka Perkov <luka.perkov@sartura.hr>
-S:	Maintained
-F:	arch/arm/boot/dts/marvell/armada-xp-crs305-1g-4s-bit.dts
-F:	arch/arm/boot/dts/marvell/armada-xp-crs305-1g-4s.dts
-F:	arch/arm/boot/dts/marvell/armada-xp-crs326-24g-2s-bit.dts
-F:	arch/arm/boot/dts/marvell/armada-xp-crs326-24g-2s.dts
-F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s-bit.dts
-F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s.dts
-
 MIN HEAP
 M:	Kuan-Wei Chiu <visitorckw@gmail.com>
 L:	linux-kernel@vger.kernel.org
@@ -19984,23 +19757,6 @@ F:	sound/soc/ti/omap*
 F:	sound/soc/ti/rx51.c
 F:	sound/soc/ti/sdma-pcm.*
 
-OMAP CLOCK FRAMEWORK SUPPORT
-M:	Paul Walmsley <paul@pwsan.com>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/*omap*/*clock*
-
-OMAP DEVICE TREE SUPPORT
-M:	Aaro Koskinen <aaro.koskinen@iki.fi>
-M:	Andreas Kemnade <andreas@kemnade.info>
-M:	Kevin Hilman <khilman@baylibre.com>
-M:	Roger Quadros <rogerq@kernel.org>
-M:	Tony Lindgren <tony@atomide.com>
-L:	linux-omap@vger.kernel.org
-L:	devicetree@vger.kernel.org
-S:	Maintained
-F:	arch/arm/boot/dts/ti/omap/
-
 OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 L:	linux-omap@vger.kernel.org
 L:	linux-fbdev@vger.kernel.org
@@ -20042,18 +19798,6 @@ L:	linux-omap@vger.kernel.org
 S:	Orphan
 F:	drivers/mmc/host/omap_hsmmc.c
 
-OMAP HWMOD DATA
-M:	Paul Walmsley <paul@pwsan.com>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/mach-omap2/omap_hwmod*data*
-
-OMAP HWMOD SUPPORT
-M:	Paul Walmsley <paul@pwsan.com>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/mach-omap2/omap_hwmod.*
-
 OMAP I2C DRIVER
 M:	Vignesh R <vigneshr@ti.com>
 L:	linux-omap@vger.kernel.org
@@ -20068,18 +19812,6 @@ L:	linux-omap@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/mmc/host/omap.c
 
-OMAP POWER MANAGEMENT SUPPORT
-M:	Kevin Hilman <khilman@kernel.org>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/*omap*/*pm*
-
-OMAP POWERDOMAIN SOC ADAPTATION LAYER SUPPORT
-M:	Paul Walmsley <paul@pwsan.com>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/mach-omap2/prm*
-
 OMAP RANDOM NUMBER GENERATOR SUPPORT
 M:	Deepak Saxena <dsaxena@plexity.net>
 S:	Maintained
@@ -20091,12 +19823,6 @@ L:	linux-omap@vger.kernel.org
 S:	Orphan
 F:	arch/arm/*omap*/usb*
 F:	drivers/usb/*/*omap*
-
-OMAP/NEWFLOW NANOBONE MACHINE SUPPORT
-M:	Mark Jackson <mpfj@newflow.co.uk>
-L:	linux-omap@vger.kernel.org
-S:	Maintained
-F:	arch/arm/boot/dts/ti/omap/am335x-nano.dts
 
 OMAP1 SUPPORT
 M:	Aaro Koskinen <aaro.koskinen@iki.fi>
@@ -24161,23 +23887,6 @@ F:	drivers/cpuidle/cpuidle-s390.c
 F:	drivers/s390/
 F:	drivers/watchdog/diag288_wdt.c
 
-S390 COMMON I/O LAYER
-M:	Vineeth Vijayan <vneethv@linux.ibm.com>
-M:	Peter Oberparleiter <oberpar@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-S:	Supported
-F:	drivers/s390/cio/
-
-S390 CRYPTO MODULES, PRNG DRIVER, ARCH RANDOM
-M:	Harald Freudenberger <freude@linux.ibm.com>
-M:	Holger Dengler <dengler@linux.ibm.com>
-L:	linux-crypto@vger.kernel.org
-L:	linux-s390@vger.kernel.org
-S:	Supported
-F:	arch/s390/crypto/
-F:	arch/s390/include/asm/archrandom.h
-F:	arch/s390/include/asm/cpacf.h
-
 S390 DASD DRIVER
 M:	Stefan Haberland <sth@linux.ibm.com>
 M:	Jan Hoeppner <hoeppner@linux.ibm.com>
@@ -24213,23 +23922,6 @@ F:	drivers/s390/net/*iucv*
 F:	include/net/iucv/
 F:	net/iucv/
 
-S390 MM
-M:	Alexander Gordeev <agordeev@linux.ibm.com>
-M:	Gerald Schaefer <gerald.schaefer@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/s390/linux.git
-F:	arch/s390/include/asm/pgtable.h
-F:	arch/s390/mm
-
-S390 NETWORK DRIVERS
-M:	Alexandra Winter <wintera@linux.ibm.com>
-M:	Aswin Karuvally <aswin@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-L:	netdev@vger.kernel.org
-S:	Supported
-F:	drivers/s390/net/
-
 S390 PCI SUBSYSTEM
 M:	Niklas Schnelle <schnelle@linux.ibm.com>
 M:	Gerd Bayer <gbayer@linux.ibm.com>
@@ -24244,24 +23936,6 @@ M:	Sven Schnelle <svens@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
 F:	drivers/ptp/ptp_s390.c
-
-S390 SCM DRIVER
-M:	Vineeth Vijayan <vneethv@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-S:	Supported
-F:	drivers/s390/block/scm*
-F:	drivers/s390/cio/scm.c
-
-S390 VFIO-AP DRIVER
-M:	Tony Krowiak <akrowiak@linux.ibm.com>
-M:	Halil Pasic <pasic@linux.ibm.com>
-M:	Jason Herne <jjherne@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-L:	kvm@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
-F:	Documentation/arch/s390/vfio-ap*
-F:	drivers/s390/crypto/vfio_ap*
 
 S390 VFIO-CCW DRIVER
 M:	Eric Farman <farman@linux.ibm.com>
@@ -24286,24 +23960,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
 F:	arch/s390/kvm/s390/pci*
 F:	drivers/vfio/pci/vfio_pci_zdev.c
 F:	include/uapi/linux/vfio_zdev.h
-
-S390 ZCRYPT AND PKEY DRIVER AND AP BUS
-M:	Harald Freudenberger <freude@linux.ibm.com>
-M:	Holger Dengler <dengler@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-S:	Supported
-F:	arch/s390/include/asm/ap.h
-F:	arch/s390/include/asm/pkey.h
-F:	arch/s390/include/asm/trace/zcrypt.h
-F:	arch/s390/include/uapi/asm/pkey.h
-F:	arch/s390/include/uapi/asm/zcrypt.h
-F:	drivers/s390/crypto/
-
-S390 ZFCP DRIVER
-M:	Nihar Panda <niharp@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-S:	Supported
-F:	drivers/s390/scsi/zfcp_*
 
 SAA6588 RDS RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@kernel.org>
@@ -24560,12 +24216,6 @@ F:	drivers/phy/samsung/phy-exynos5250-usb2.c
 F:	drivers/phy/samsung/phy-s5pv210-usb2.c
 F:	drivers/phy/samsung/phy-samsung-usb2.c
 F:	drivers/phy/samsung/phy-samsung-usb2.h
-
-SANCLOUD BEAGLEBONE ENHANCED DEVICE TREE
-M:	Paul Barker <paul.barker@sancloud.com>
-R:	Marc Murphy <marc.murphy@sancloud.com>
-S:	Supported
-F:	arch/arm/boot/dts/ti/omap/am335x-sancloud*
 
 SB1250-DUART BROADCOM SOC SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
@@ -25508,19 +25158,6 @@ F:	drivers/md/raid*
 F:	include/linux/raid/
 F:	include/uapi/linux/raid/
 F:	lib/raid/
-
-SOLIDRUN CLEARFOG SUPPORT
-M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
-F:	arch/arm/boot/dts/marvell/armada-388-clearfog*
-F:	arch/arm/boot/dts/marvell/armada-38x-solidrun-*
-
-SOLIDRUN CUBOX-I/HUMMINGBOARD SUPPORT
-M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
-F:	arch/arm/boot/dts/nxp/imx/imx6*-cubox-i*
-F:	arch/arm/boot/dts/nxp/imx/imx6*-hummingboard*
-F:	arch/arm/boot/dts/nxp/imx/imx6*-sr-*
 
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
@@ -29026,17 +28663,6 @@ S:	Maintained
 F:	drivers/crypto/virtio/
 F:	include/uapi/linux/virtio_crypto.h
 
-VIRTIO DRIVERS FOR S390
-M:	Cornelia Huck <cohuck@redhat.com>
-M:	Halil Pasic <pasic@linux.ibm.com>
-M:	Eric Farman <farman@linux.ibm.com>
-L:	linux-s390@vger.kernel.org
-L:	virtualization@lists.linux.dev
-L:	kvm@vger.kernel.org
-S:	Supported
-F:	arch/s390/include/uapi/asm/virtio-ccw.h
-F:	drivers/s390/virtio/
-
 VIRTIO FILE SYSTEM
 M:	German Maglione <gmaglione@redhat.com>
 M:	Vivek Goyal <vgoyal@redhat.com>
@@ -29869,13 +29495,6 @@ L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/block/xen*
 F:	drivers/block/xen-blkback/*
-
-XEN HYPERVISOR ARM
-M:	Stefano Stabellini <sstabellini@kernel.org>
-L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/include/asm/xen/
-F:	arch/arm/xen/
 
 XEN HYPERVISOR ARM64
 M:	Stefano Stabellini <sstabellini@kernel.org>
