@@ -8,7 +8,7 @@
 //! C version of this driver: [`drivers/net/phy/cortina.c`](./cortina.c)
 use kernel::{
     error::code,
-    net::phy::{self, DeviceId, Driver},
+    net::phy::{self, DeviceId, Driver, Features},
     prelude::*,
     uapi,
 };
@@ -65,8 +65,19 @@ impl Driver for PhyCS4340 {
         // Make sure the device tree binding matched the driver with the
         // right device.
         if phy_id != PHY_ID_CS4340 {
+            // As in the C driver, report the driver name that did not match.
+            dev_err!(dev, "Error matching phy with {} driver\n", PhyCS4340::NAME);
             return Err(code::ENODEV);
         }
+
+        Ok(())
+    }
+
+    fn get_features(dev: &mut phy::Device) -> Result {
+        // The C driver sets `.features = PHY_10GBIT_FEATURES` on its
+        // `struct phy_driver`; `get_features` filling `supported` is the
+        // equivalent the Rust vtable provides.
+        dev.set_supported(Features::TenGbit);
 
         Ok(())
     }
