@@ -1,0 +1,53 @@
+# rlinux CI: build (clippy, -Werror), rustfmt, QEMU boot with Rust modules,
+# and KUnit including the Rust doctests. The same ci/*.sh scripts run locally;
+# see ci/README.md.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  LLVM: "-18"
+  LIBCLANG_PATH: /usr/lib/llvm-18/lib
+
+jobs:
+  build-boot:
+    name: build + rustfmt + boot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: build
+        run: ci/build.sh
+      - name: rustfmt
+        run: ci/rustfmt.sh
+      - name: boot
+        run: ci/boot.sh
+      - name: upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-serial-log
+          path: .ci-out/boot-serial.log
+          if-no-files-found: ignore
+
+  kunit:
+    name: kunit (incl. Rust doctests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: kunit
+        run: ci/kunit.sh

@@ -1,0 +1,39 @@
+name: rlinux toolchain
+description: LLVM 18, the minimum rustc/bindgen from scripts/min-tool-version.sh, QEMU, busybox, KVM.
+runs:
+  using: composite
+  steps:
+    - name: packages
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends \
+          clang-18 lld-18 llvm-18 libclang-18-dev bc bison flex libelf-dev libssl-dev \
+          qemu-system-x86 busybox-static file kmod
+    - name: enable KVM
+      shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+          | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+        sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+    - name: tool versions
+      id: versions
+      shell: bash
+      run: |
+        echo "rustc=$(scripts/min-tool-version.sh rustc)" >> "$GITHUB_OUTPUT"
+        echo "bindgen=$(scripts/min-tool-version.sh bindgen)" >> "$GITHUB_OUTPUT"
+    - name: cache bindgen
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/bindgen
+        key: bindgen-${{ steps.versions.outputs.bindgen }}-${{ runner.os }}
+    - name: rust
+      shell: bash
+      run: |
+        rustup toolchain install --profile minimal "${{ steps.versions.outputs.rustc }}" \
+          --component rust-src,rustfmt,clippy
+        rustup override set "${{ steps.versions.outputs.rustc }}"
+        if [ ! -x ~/.cargo/bin/bindgen ]; then
+          cargo install --locked bindgen-cli --version "${{ steps.versions.outputs.bindgen }}"
+        fi
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"

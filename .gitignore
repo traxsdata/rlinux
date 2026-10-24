@@ -195,3 +195,7 @@ sphinx_*/
 
 # bc language scripts (not LLVM bitcode)
 !kernel/time/timeconst.bc
+
+# rlinux CI (ci/): workflows are tracked, output is not
+!/.github/
+/.ci-out/
