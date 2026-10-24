@@ -272,6 +272,7 @@ config INTEL_XWAY_PHY
 
 config LSI_ET1011C_PHY
 	tristate "LSI ET1011C PHY"
+	depends on RUST_PHYLIB_ABSTRACTIONS
 	help
 	  Supports the LSI ET1011C PHY.
 

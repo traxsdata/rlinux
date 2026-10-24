@@ -156,6 +156,16 @@ impl Device {
         completed == 1
     }
 
+    /// Gets the current link speed.
+    ///
+    /// It is updated by `genphy_read_status` and the link state machine.
+    pub fn speed(&self) -> u32 {
+        let phydev = self.0.get();
+        // SAFETY: The struct invariant ensures that we may access
+        // this field without additional synchronization.
+        unsafe { (*phydev).speed as u32 }
+    }
+
     /// Sets the speed of the PHY.
     pub fn set_speed(&mut self, speed: u32) {
         let phydev = self.0.get();
@@ -204,6 +214,16 @@ impl Device {
         // SAFETY: `phydev` is pointing to a valid object by the type invariant of `Self`.
         // So it's just an FFI call.
         unsafe { bindings::phy_resolve_aneg_linkmode(phydev) };
+    }
+
+    /// Configures the advertisement and restarts auto-negotiation, or writes
+    /// the basic mode control register if auto-negotiation is not enabled.
+    pub fn genphy_config_aneg(&mut self) -> Result {
+        let phydev = self.0.get();
+        // SAFETY: `phydev` is pointing to a valid object by the type invariant of `Self`.
+        // So it's just an FFI call. The `changed` argument is `false` because the
+        // autoneg state has not changed.
+        to_result(unsafe { bindings::__genphy_config_aneg(phydev, false) })
     }
 
     /// Executes software reset the PHY via `BMCR_RESET` bit.
