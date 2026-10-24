@@ -75,13 +75,13 @@ impl<'a> Operations for QcomRng<'a> {
 
         while currsize < max {
             // The C driver polls with `readl_poll_timeout(base + PRNG_STATUS,
-            // val, val & PRNG_STATUS_DATA_AVAIL, 200, 10000)` — every 200 us
-            // for at most 10000 reads.
+            // val, val & PRNG_STATUS_DATA_AVAIL, 200, 10000)`: every 200 us,
+            // giving up after 10000 us (10 ms).
             poll::read_poll_timeout(
                 || data.mmio.try_read32(PRNG_STATUS),
                 |val: &u32| *val & PRNG_STATUS_DATA_AVAIL != 0,
                 Delta::from_micros(200),
-                Delta::from_millis(2000),
+                Delta::from_millis(10),
             )?;
 
             let val = data.mmio.try_read32(PRNG_DATA_OUT)?;

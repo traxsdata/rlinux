@@ -648,6 +648,9 @@ config HW_RANDOM_QCOM
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HW_RANDOM
 	depends on RUST
+	# kernel::clk::OptionalClk only exists when CONFIG_COMMON_CLK is set;
+	# without it the "core" clock could not be enabled.
+	depends on COMMON_CLK
 	help
 	  This driver provides support for the True Random Number
 	  Generator hardware found on some Qualcomm SoCs.
