@@ -928,7 +928,38 @@ RS_OPS = {"read32": ("R32", 0), "read16": ("R16", 0), "read8": ("R8", 0),
           "read": ("PHY.R", 0), "write": ("PHY.W", 0), "c45_read_raw": ("C45.R", -1)}
 
 
-def accesses(text: str, is_rust: bool) -> list[str]:
+def c_local_aliases(text: str) -> dict:
+    # Local address variables in C (`void __iomem *cfg = base + REG;`): resolve to REG.
+    return {v: r for v, r in re.findall(
+        r"\b(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", text)}
+
+
+def caller_param_aliases(fnname: str, d) -> dict:
+    # A C helper that reads a base address passed as a parameter
+    # (`readl_relaxed(mem)` where `mem` is the parameter) resolves to the
+    # caller's expression: one level of call-site resolution (`fifo_count(fc_addr)`
+    # with `fc_addr = base + HOST_FIFO_COUNT` -> `mem` ~ HOST_FIFO_COUNT).
+    aliases = {}
+    m = re.match(r".*\(([^;{)]*)\)\s*\{", d.functions[fnname], re.S)
+    if not m:
+        return aliases
+    params = [p.split()[-1].strip("*") for p in split_args(m.group(1))
+              if p.strip() and p.split()[-1].strip("*") not in ("void",)]
+    for other, body in d.functions.items():
+        if other == fnname:
+            continue
+        call = re.search(r"\b" + re.escape(fnname) + r"\s*\(", body)
+        if not call:
+            continue
+        open_i = call.end() - 1
+        args = split_args(body[open_i + 1:matching(body, open_i, "(", ")") - 1])
+        callers = c_local_aliases(body)
+        for p, a in zip(params, args):
+            aliases[p] = callers.get(a, reg_of(a))
+    return aliases
+
+
+def accesses(text: str, is_rust: bool, extra_aliases: dict = None) -> list[str]:
     seq = []
     if is_rust:
         pat = re.compile(r"\.(?:try_)?(read32|read16|read8|write32|write16|write8|read|write|c45_read_raw)(?:_relaxed)?\s*\(")
@@ -937,9 +968,9 @@ def accesses(text: str, is_rust: bool) -> list[str]:
         pat = re.compile(r"\b(readl|readw|readb|ioread32|writel|writew|writeb|iowrite32|phy_read_mmd|phy_write_mmd"
                          r"|phy_read|phy_write|mdiobus_c45_read|mdiobus_c45_write)(?:_relaxed)?\s*\(")
         table = C_OPS
-    # Local address variables in C (`void __iomem *cfg = base + REG;`): resolve to REG.
-    aliases = {} if is_rust else {v: r for v, r in re.findall(
-        r"\b(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", text)}
+    aliases = {} if is_rust else c_local_aliases(text)
+    if extra_aliases:
+        aliases.update(extra_aliases)
     for m in pat.finditer(text):
         op = m.group(1)
         open_i = m.end() - 1
@@ -967,7 +998,7 @@ def cmd_compare(args) -> int:
     c_set, r_set = set(), set()
     print(f"register accesses ({args.c} vs {args.rust}):")
     for name, body in d.functions.items():
-        seq = accesses(body, False)
+        seq = accesses(body, False, caller_param_aliases(name, d))
         if seq:
             c_set.update(seq)
             print(f"  C  {name}: {' '.join(seq)}")
