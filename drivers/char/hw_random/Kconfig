@@ -647,6 +647,7 @@ config HW_RANDOM_QCOM
 	tristate "Qualcomm True Random Number Generator Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HW_RANDOM
+	depends on RUST
 	help
 	  This driver provides support for the True Random Number
 	  Generator hardware found on some Qualcomm SoCs.

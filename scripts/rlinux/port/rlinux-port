@@ -173,11 +173,13 @@ def parse(spec: str) -> Driver:
         start = code.index("{", m.end() - 1)
         d.functions[m.group(1)] = code[m.start():matching(code, start)]
 
-    for m in re.finditer(r"struct\s+of_device_id\s+\w+\s*\[\]\s*(?:__maybe_unused\s*)?=\s*\{", code):
+    for m in re.finditer(r"struct\s+of_device_id\s+(?:__maybe_unused\s+)?\w+\s*\[\]\s*(?:__maybe_unused\s*)?=\s*\{",
+                         code):
         body = code[m.end() - 1:matching(code, m.end() - 1)]
         for e in re.finditer(r'\.compatible\s*=\s*"([^"]+)"(?:[^}]*?\.data\s*=\s*([^,}]+))?', body):
             d.of_ids.append((e.group(1), e.group(2).strip() if e.group(2) else None))
-    for m in re.finditer(r"struct\s+acpi_device_id\s+\w+\s*\[\]\s*=\s*\{", code):
+    for m in re.finditer(r"struct\s+acpi_device_id\s+(?:__maybe_unused\s+)?\w+\s*\[\]\s*(?:__maybe_unused\s*)?=\s*\{",
+                         code):
         body = code[m.end() - 1:matching(code, m.end() - 1)]
         d.acpi_ids += re.findall(r'"([A-Z0-9]{4,8})"', body)
 
@@ -892,10 +894,12 @@ def cmd_scaffold(args) -> int:
 def split_args(argtext: str) -> list[str]:
     """Split a call's argument text on top-level commas."""
     out, depth, cur = [], 0, []
-    for ch in argtext:
+    for i, ch in enumerate(argtext):
         if ch in "([{<":
             depth += 1
-        elif ch in ")]}>":
+        # `>` closes a Rust generic, but `->` (C pointer dereference, Rust
+        # fat arrow) is not a bracket.
+        elif ch in ")]}>" and not (ch == ">" and i > 0 and argtext[i - 1] == "-"):
             depth -= 1
         if ch == "," and depth == 0:
             out.append("".join(cur).strip()); cur = []
@@ -919,7 +923,12 @@ def reg_of(expr: str) -> str:
 
 
 # (C name, kind, index of the offset argument: -1 = last)
+# The `*_poll_timeout` variants take the address as their first argument.
 C_OPS = {"readl": ("R32", -1), "readw": ("R16", -1), "readb": ("R8", -1), "ioread32": ("R32", -1),
+         "readl_poll_timeout": ("R32", 0), "readl_poll_timeout_atomic": ("R32", 0),
+         "readl_relaxed_poll_timeout": ("R32", 0), "readl_relaxed_poll_timeout_atomic": ("R32", 0),
+         "writel_poll_timeout": ("W32", 0), "writel_poll_timeout_atomic": ("W32", 0),
+         "writel_relaxed_poll_timeout": ("W32", 0), "writel_relaxed_poll_timeout_atomic": ("W32", 0),
          "writel": ("W32", -1), "writew": ("W16", -1), "writeb": ("W8", -1), "iowrite32": ("W32", -1),
          "phy_read": ("PHY.R", 1), "phy_write": ("PHY.W", 1), "phy_read_mmd": ("PHY.R45", 2),
          "phy_write_mmd": ("PHY.W45", 2), "mdiobus_c45_read": ("C45.R", -1), "mdiobus_c45_write": ("C45.W", 3)}
@@ -928,18 +937,25 @@ RS_OPS = {"read32": ("R32", 0), "read16": ("R16", 0), "read8": ("R8", 0),
           "read": ("PHY.R", 0), "write": ("PHY.W", 0), "c45_read_raw": ("C45.R", -1)}
 
 
-def accesses(text: str, is_rust: bool) -> list[str]:
+def accesses(text: str, is_rust: bool, aliases: dict[str, str] | None = None) -> list[str]:
     seq = []
     if is_rust:
         pat = re.compile(r"\.(?:try_)?(read32|read16|read8|write32|write16|write8|read|write|c45_read_raw)(?:_relaxed)?\s*\(")
         table = RS_OPS
     else:
-        pat = re.compile(r"\b(readl|readw|readb|ioread32|writel|writew|writeb|iowrite32|phy_read_mmd|phy_write_mmd"
-                         r"|phy_read|phy_write|mdiobus_c45_read|mdiobus_c45_write)(?:_relaxed)?\s*\(")
+        pat = re.compile(
+            r"\b(readl_poll_timeout|readl_poll_timeout_atomic|readl_relaxed_poll_timeout"
+            r"|readl_relaxed_poll_timeout_atomic|readl|readw|readb|ioread32"
+            r"|writel_poll_timeout|writel_poll_timeout_atomic|writel_relaxed_poll_timeout"
+            r"|writel_relaxed_poll_timeout_atomic|writel|writew|writeb|iowrite32"
+            r"|phy_read_mmd|phy_write_mmd|phy_read|phy_write|mdiobus_c45_read|mdiobus_c45_write)(?:_relaxed)?\s*\(")
         table = C_OPS
-    # Local address variables in C (`void __iomem *cfg = base + REG;`): resolve to REG.
-    aliases = {} if is_rust else {v: r for v, r in re.findall(
-        r"\b(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", text)}
+    # Alias address variables (`void __iomem *cfg = base + REG;`,
+    # `rng->cfg_addr = base + REG;`): resolve to REG. Callers may pass a
+    # file-wide table so assignments outside the current function apply.
+    if aliases is None:
+        aliases = {} if is_rust else {v: r for v, r in re.findall(
+            r"\b(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", text)}
     for m in pat.finditer(text):
         op = m.group(1)
         open_i = m.end() - 1
@@ -965,9 +981,14 @@ def cmd_compare(args) -> int:
     rs_code = re.sub(r"//.*", "", rs)
     status = 0
     c_set, r_set = set(), set()
+    # C code often computes an address once (`rng->cfg_addr = base + REG;`)
+    # and uses it from several functions, so build the alias table from the
+    # whole file, not from each function separately.
+    aliases = {v: r for v, r in re.findall(
+        r"(?:\w+->\s*)?(\w+)\s*=\s*[^;=]*?\+\s*([A-Z][A-Z0-9_]+)\s*;", d.code)}
     print(f"register accesses ({args.c} vs {args.rust}):")
     for name, body in d.functions.items():
-        seq = accesses(body, False)
+        seq = accesses(body, False, aliases)
         if seq:
             c_set.update(seq)
             print(f"  C  {name}: {' '.join(seq)}")
@@ -988,8 +1009,8 @@ def cmd_compare(args) -> int:
         print("  in Rust only: " + ", ".join(only_r))
     if not only_c and not only_r:
         print("  same set of accesses (check order per function above)")
-    c_ids = {c for c, _ in d.of_ids}
-    r_ids = set(re.findall(r'DeviceId::new\(c"([^"]+)"\)', rs))
+    c_ids = {c for c, _ in d.of_ids} | set(d.acpi_ids)
+    r_ids = set(re.findall(r'(?:of|acpi)::DeviceId::new\(c"([^"]+)"\)', rs))
     if c_ids or r_ids:
         if c_ids != r_ids:
             status = 1
