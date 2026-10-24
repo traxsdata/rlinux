@@ -944,14 +944,6 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/sunxi/cedrus/
 
-ALPHA PORT
-M:	Richard Henderson <richard.henderson@linaro.org>
-M:	Matt Turner <mattst88@gmail.com>
-M:	Magnus Lindholm <linmag7@gmail.com>
-L:	linux-alpha@vger.kernel.org
-S:	Odd Fixes
-F:	arch/alpha/
-
 ALPS PS/2 TOUCHPAD DRIVER
 R:	Pali Rohár <pali@kernel.org>
 F:	drivers/input/mouse/alps.*
@@ -7279,14 +7271,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/amd/declance.c
 
-DECSTATION PLATFORM SUPPORT
-M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/dec/
-F:	arch/mips/include/asm/dec/
-F:	arch/mips/include/asm/mach-dec/
-
 DEFXX FDDI NETWORK DRIVER
 M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
 S:	Maintained
@@ -11584,11 +11568,6 @@ M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Maintained
 F:	drivers/hwtracing/
 
-HARMONY SOUND DRIVER
-L:	linux-parisc@vger.kernel.org
-S:	Maintained
-F:	sound/parisc/harmony.*
-
 HDPVR USB VIDEO ENCODER DRIVER
 M:	Hans Verkuil <hverkuil@kernel.org>
 L:	linux-media@vger.kernel.org
@@ -15683,15 +15662,6 @@ S:	Supported
 F:	drivers/net/pcs/pcs-lynx.c
 F:	include/linux/pcs-lynx.h
 
-M68K ARCHITECTURE
-M:	Geert Uytterhoeven <geert@linux-m68k.org>
-L:	linux-m68k@lists.linux-m68k.org
-S:	Maintained
-W:	http://www.linux-m68k.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/geert/linux-m68k.git
-F:	arch/m68k/
-F:	drivers/zorro/
-
 M68K ON APPLE MACINTOSH
 M:	Joshua Thompson <funaho@jurai.org>
 L:	linux-m68k@lists.linux-m68k.org
@@ -15700,12 +15670,6 @@ W:	http://www.mac.linux-m68k.org/
 F:	arch/m68k/mac/
 F:	drivers/macintosh/adb-iop.c
 F:	drivers/macintosh/via-macii.c
-
-M68K ON HP9000/300
-M:	Philip Blundell <philb@gnu.org>
-S:	Maintained
-W:	http://www.tazenda.demon.co.uk/phil/linux-hp
-F:	arch/m68k/hp300/
 
 M68K ON MVME147
 M:	Daniel Palmer <daniel@thingy.jp>
@@ -15817,12 +15781,6 @@ F:	rust/helpers/maple_tree.c
 F:	rust/kernel/maple_tree.rs
 F:	tools/testing/radix-tree/maple.c
 F:	tools/testing/shared/linux/maple_tree.h
-
-MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
-M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/boot/dts/img/pistachio*
 
 MARVELL 88E6XXX ETHERNET SWITCH FABRIC DRIVER
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -17736,13 +17694,6 @@ F:	drivers/bus/mhi/
 F:	drivers/pci/endpoint/functions/pci-epf-mhi.c
 F:	include/linux/mhi.h
 
-MICROBLAZE ARCHITECTURE
-M:	Michal Simek <monstr@monstr.eu>
-S:	Supported
-W:	http://www.monstr.eu/fdt/
-T:	git git://git.monstr.eu/linux-2.6-microblaze.git
-F:	arch/microblaze/
-
 MICROBLAZE TMR INJECT
 M:	Appana Durga Kedareswara rao <appana.durga.kedareswara.rao@amd.com>
 S:	Supported
@@ -18327,13 +18278,6 @@ S:	Supported
 F:	Documentation/devicetree/bindings/power/mti,mips-cpc.yaml
 F:	arch/mips/generic/
 F:	arch/mips/tools/generic-board-config.sh
-
-MIPS RINT INSTRUCTION EMULATION
-M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
-L:	linux-mips@vger.kernel.org
-S:	Supported
-F:	arch/mips/math-emu/dp_rint.c
-F:	arch/mips/math-emu/sp_rint.c
 
 MIPS/LOONGSON1 ARCHITECTURE
 M:	Keguang Zhang <keguang.zhang@gmail.com>
@@ -19488,13 +19432,6 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-nintendo*
 
-NIOS2 ARCHITECTURE
-M:	Dinh Nguyen <dinguyen@kernel.org>
-M:	Simon Schuster <schuster.simon@siemens-energy.com>
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
-F:	arch/nios2/
-
 NITRO ENCLAVES (NE)
 M:	Alexandru Ciobotaru <alcioa@amazon.com>
 R:	The AWS Nitro Enclaves Team <aws-nitro-enclaves-devel@amazon.com>
@@ -20524,12 +20461,6 @@ M:	Miquel Raynal <miquel.raynal@bootlin.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/nvmem/layouts/onie,tlv-layout.yaml
 F:	drivers/nvmem/layouts/onie-tlv.c
-
-ONION OMEGA2+ BOARD
-M:	Harvey Hunt <harveyhuntnexus@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/boot/dts/ralink/omega2p.dts
 
 ONSEMI ETHERNET PHY DRIVERS
 M:	Piergiorgio Beruto <piergiorgio.beruto@gmail.com>
@@ -22577,13 +22508,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/embedded-controller/qcom,hamoa-crd-ec.yaml
 F:	drivers/platform/arm64/qcom-hamoa-ec.c
 
-QUALCOMM HEXAGON ARCHITECTURE
-M:	Brian Cain <brian.cain@oss.qualcomm.com>
-L:	linux-hexagon@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bcain/linux.git
-F:	arch/hexagon/
-
 QUALCOMM HIDMA DRIVER
 M:	Sinan Kaya <okaya@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -22867,20 +22791,6 @@ S:	Maintained
 T:	git git://linuxtv.org/media.git
 F:	drivers/media/cec/usb/rainshadow/
 
-RALINK MIPS ARCHITECTURE
-M:	John Crispin <john@phrozen.org>
-M:	Sergio Paracuellos <sergio.paracuellos@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/ralink
-
-RALINK MT7621 MIPS ARCHITECTURE
-M:	Chester A. Unal <chester.a.unal@arinc9.com>
-M:	Sergio Paracuellos <sergio.paracuellos@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/boot/dts/ralink/mt7621*
-
 RALINK RT2X00 WIRELESS LAN DRIVER
 M:	Stanislaw Gruszka <stf_xl@wp.pl>
 L:	linux-wireless@vger.kernel.org
@@ -22892,13 +22802,6 @@ M:	Jens Axboe <axboe@kernel.dk>
 S:	Maintained
 F:	Documentation/admin-guide/blockdev/ramdisk.rst
 F:	drivers/block/brd.c
-
-RANCHU VIRTUAL BOARD FOR MIPS
-M:	Miodrag Dinic <miodrag.dinic@mips.com>
-L:	linux-mips@vger.kernel.org
-S:	Supported
-F:	arch/mips/configs/generic/board-ranchu.config
-F:	arch/mips/generic/board-ranchu.c
 
 RANDOM NUMBER DRIVER
 M:	"Theodore Ts'o" <tytso@mit.edu>
@@ -26583,17 +26486,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/watchdog/sunplus,sp7021-wdt.yaml
 F:	drivers/watchdog/sunplus_wdt.c
 
-SUPERH
-M:	Yoshinori Sato <ysato@users.sourceforge.jp>
-M:	Rich Felker <dalias@libc.org>
-M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-L:	linux-sh@vger.kernel.org
-S:	Maintained
-Q:	http://patchwork.kernel.org/project/linux-sh/list/
-F:	Documentation/arch/sh/
-F:	arch/sh/
-F:	drivers/sh/
-
 SUSPEND TO RAM
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 R:	Len Brown <lenb@kernel.org>
@@ -29467,12 +29359,6 @@ R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	net/vmw_vsock/vmci_transport*
-
-VOCORE VOCORE2 BOARD
-M:	Harvey Hunt <harveyhuntnexus@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	arch/mips/boot/dts/ralink/vocore2.dts
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lgirdwood@gmail.com>

@@ -28,6 +28,21 @@ inventing new unsafe bindings from scratch. When no abstraction exists yet
 for a subsystem, that is its own, separately-reviewed task (adding a safe
 abstraction in `rust/kernel/`), never bundled with a driver port.
 
+## Supported architectures
+
+Supported: **x86, arm, arm64, riscv, loongarch, powerpc, s390, um** —
+the eight architectures where Rust builds (they select `HAVE_RUST`).
+
+The other thirteen upstream architectures (alpha, arc, csky, hexagon,
+m68k, microblaze, mips, nios2, openrisc, parisc, sh, sparc, xtensa),
+together with their arch-only drivers, sound boards and documentation,
+have been pruned from the tree (issue #5, "Diet"). This is a deliberate,
+documented narrowing of scope that falls under the exception of ground
+rule 3: a driver converted to Rust can never build on an architecture
+that does not select `HAVE_RUST`, so those ports are dead weight for this
+project. The exact list of removed paths is recorded in
+`scripts/rlinux/pruned-paths.txt`.
+
 ## Ground rules for every conversion PR
 
 1. **One driver/module per PR.** No multi-subsystem sweeps.
@@ -128,3 +143,20 @@ make LLVM=1 -j$(nproc)
 If your distro's `clang`/`lld`/`llvm-*` binaries are version-suffixed
 (e.g. `clang-21`), symlink them to unsuffixed names on a directory you put
 early in `PATH`, or pass `CC=`, `LD=`, `AR=`, etc. explicitly to `make`.
+
+## Syncing with upstream
+
+rlinux is a squashed import with no upstream history, so a sync against
+`torvalds/linux` is an overlay onto a pruned tree. The expected conflict
+shape is modify/delete: upstream keeps modifying paths that this tree has
+deliberately removed. Resolution is mechanical — anything under a path
+listed in `scripts/rlinux/pruned-paths.txt` stays deleted:
+
+```sh
+grep -v -e '^#' -e '^$' scripts/rlinux/pruned-paths.txt | xargs git rm -r -q --ignore-unmatch
+```
+
+If upstream has since started referencing removed paths from files that
+remain (e.g. new entries in `drivers/Makefile` or
+`Documentation/arch/index.rst`), fix those references in the same way as
+done in issue #5.

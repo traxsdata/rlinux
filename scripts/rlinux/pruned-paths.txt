@@ -1,0 +1,60 @@
+# Paths deliberately removed from rlinux (issue #5, "Diet", phase A).
+#
+# rlinux is an incremental C-to-Rust kernel port: a Rust module can only be
+# built for an architecture that selects HAVE_RUST.  The 13 architectures in
+# this list (plus their arch-only buses/drivers, sound boards and docs)
+# cannot build Rust at all, so a driver converted to Rust can never compile
+# or run there.  They were removed to cut ~1M lines of dead weight that
+# costs review time and tree size.
+#
+# Supported architectures (the ones that select HAVE_RUST):
+#   x86, arm, arm64, riscv, loongarch, powerpc, s390, um
+#
+# Syncing with upstream: when a future sync imports paths that were
+# removed here, resolve the modify/delete conflicts by re-deleting them
+# with:
+#   grep -v -e '^#' -e '^$' scripts/rlinux/pruned-paths.txt | xargs git rm -r -q --ignore-unmatch
+#
+# The list is authoritative: anything under a path below stays deleted.
+arch/alpha
+arch/arc
+arch/csky
+arch/hexagon
+arch/m68k
+arch/microblaze
+arch/mips
+arch/nios2
+arch/openrisc
+arch/parisc
+arch/sh
+arch/sparc
+arch/xtensa
+drivers/parisc
+drivers/sbus
+drivers/tc
+drivers/zorro
+drivers/nubus
+drivers/sh
+sound/mips
+sound/parisc
+sound/sh
+sound/sparc
+Documentation/arch/arc
+Documentation/arch/m68k
+Documentation/arch/mips
+Documentation/arch/nios2
+Documentation/arch/openrisc
+Documentation/arch/parisc
+Documentation/arch/sh
+Documentation/arch/sparc
+Documentation/arch/xtensa
+tools/arch/alpha
+tools/arch/arc
+tools/arch/csky
+tools/arch/hexagon
+tools/arch/microblaze
+tools/arch/mips
+tools/arch/parisc
+tools/arch/sh
+tools/arch/sparc
+tools/arch/xtensa
