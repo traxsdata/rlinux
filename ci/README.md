@@ -21,6 +21,14 @@ Environment: `LLVM` (default `1`; e.g. `LLVM=-21` for versioned binaries),
 `CI_OUT`, `JOBS` (default `nproc`), `BUSYBOX` (default `busybox` in `PATH`),
 `QEMU_ACCEL` (default `kvm` when `/dev/kvm` is usable, else `tcg`).
 
+`ccache` is optional. If a `ccache` binary is in `PATH`, the C builds of
+`ci/build.sh`, `ci/cross-build.sh` (and `modules_install` in `ci/boot.sh`)
+compile through it (the kernel C compiler only, never host tools); `CCACHE_DIR`
+defaults to `$CI_OUT/ccache`, and `CCACHE_BASEDIR`/`CCACHE_NOHASHDIR`/
+`CCACHE_SLOPPINESS` are set so cache hits survive different checkout paths
+(CI runners). Without `ccache` the scripts build exactly as before — nothing
+is cached, nothing changes (see issue #30).
+
 Locally: `ci/all.sh` (about 10 minutes with 16 cores).
 
 ## Adding a driver to CI

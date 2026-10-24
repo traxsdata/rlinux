@@ -28,6 +28,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
+        id: setup
+      # Warm runs skip recompiling the (C) kernel. The cache dir is
+      # $CI_OUT/ccache (set in ci/lib.sh). Cache keys are immutable, so the
+      # key ends in the commit SHA: every run saves a fresh cache, and the
+      # restore-key prefixes pick the newest one with the same toolchain and
+      # ci/ config (then any config) to start from.
+      - name: ccache restore (x86_64)
+        uses: actions/cache@v5
+        with:
+          path: .ci-out/ccache
+          key: ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-${{ github.sha }}
+          restore-keys: |
+            ccache-x86_64-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-
+            ccache-x86_64-
       - name: build
         run: ci/build.sh
       - name: rustfmt
@@ -55,8 +69,10 @@ jobs:
   cross-build:
     name: cross-build (${{ matrix.arch }})
     runs-on: ubuntu-24.04
-    # Cross builds are slower than the native build job (no ccache benefit
-    # from previous runs): 27 min on 16 local cores -> allow 120.
+    # Cross builds are slower than the native build job (~27 min cold on 16
+    # local cores; 57 min to 1h25m observed on the GitHub runners, issue #30).
+    # Ccache turns most later runs into warm runs; keep 120 min so the first
+    # (cold) run of a new cache key still fits.
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -66,5 +82,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
+        id: setup
+      - name: ccache restore (${{ matrix.arch }})
+        uses: actions/cache@v5
+        with:
+          path: .ci-out/${{ matrix.arch }}/ccache
+          key: ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.arch }}-clang${{ steps.setup.outputs.clang }}-rust${{ steps.setup.outputs.rustc }}-cfg${{ steps.setup.outputs.cfg }}-
+            ccache-${{ matrix.arch }}-
       - name: cross-build ${{ matrix.arch }}
         run: ci/cross-build.sh ${{ matrix.arch }}
