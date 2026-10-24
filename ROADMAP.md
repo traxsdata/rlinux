@@ -15,11 +15,12 @@ and has working abstractions, and every change must build and boot.
 Mainline Linux (the base we forked) already ships:
 
 - A working Rust toolchain integration (`rust/`, `Documentation/rust/`)
-- Safe abstractions for several subsystems (PCI, platform, I2C, auxiliary,
-  serdev, misc/char devices, DMA, configfs, debugfs, HID transport, etc.)
-- A handful of real in-tree Rust drivers (`drivers/net/phy/*_rust.rs`,
-  `drivers/nvmem/`, parts of `drivers/tee/`, `drivers/android/binder`, etc.)
-  and sample drivers under `samples/rust/` demonstrating each abstraction.
+- Safe abstractions for several subsystems — see the verified
+  "Available abstractions" list in the candidate-queue section below, which
+  names the file in `rust/kernel/` for each one.
+- A handful of real in-tree Rust drivers (`drivers/net/phy/ax88796b_rust.rs`,
+  `drivers/android/binder/rust_binder_main.rs` and friends) and sample
+  drivers under `samples/rust/` demonstrating each abstraction.
 
 So "convert to Rust" mostly means: **replace one existing C driver/module
 with a Rust implementation using an existing kernel Rust abstraction**, not
@@ -47,19 +48,49 @@ abstraction in `rust/kernel/`), never bundled with a driver port.
 6. Follow `Documentation/rust/coding-guidelines.rst` and run
    `rustfmt`/`clippy` via `make LLVM=1 rustfmtcheck rust-analyzer`-style
    checks before opening the PR.
+7. **Candidate claims are checked against the tree.** Before a driver enters
+   the candidate queue below, its "abstraction available" claim must be
+   verified against the current tree — cite the file in `rust/kernel/` or
+   the `grep` that proves the claim, never rely on memory or on how the tree
+   looked when the entry was first written. (This rule exists because the
+   queue once claimed nvmem and watchdog Rust support that does not exist.)
 
 ## Candidate queue (easiest first)
 
-Picked for: small size, an existing Rust abstraction already covers the
-subsystem, and no exotic hardware required to test.
+Picked for: small size, no exotic hardware required to test, and — unless
+the row says **needs abstraction** — an existing Rust abstraction already
+covers the subsystem (rows marked "needs abstraction" first need a separate,
+reviewed step-0 abstraction PR in `rust/kernel/`, never bundled with the
+driver port).
+
+### Available abstractions (verified against the tree)
+
+Driver-facing abstractions that exist in `rust/kernel/` (generated with
+`ls rust/kernel/*.rs` and `ls rust/kernel/net/`, each entry checked by hand
+on `main`, 2026-10-24 — per ground rule 7):
+
+- **Bus/driver**: `platform.rs`, `pci.rs`, `i2c.rs`, `usb.rs`,
+  `auxiliary.rs`, `serdev.rs`, `faux.rs`
+- **Device class**: `miscdevice.rs`, `block.rs`, `net/phy.rs`, `pwm.rs`,
+  `regulator.rs`, `clk.rs`, `cpufreq.rs`, `opp.rs`, `hwrng.rs`
+- **Firmware & config**: `firmware.rs`, `configfs.rs`, `debugfs.rs`
+- **Discovery**: `of.rs`, `acpi.rs`
+
+Verified **absent**: there is no `rust/kernel/drm.rs` (`rust/kernel/gpu.rs`
+only holds the GPU buddy allocator), and no nvmem or watchdog abstraction
+anywhere in `rust/kernel/`. `grep -ril rust drivers/nvmem/` matches only the
+Kconfig substring "t**rust**ed application"; `drivers/watchdog/Kconfig`
+matches only "ARM-T**rust**ed-Firmware".
 
 | # | Target | Lines (C) | Rust abstraction available | Notes |
 |---|--------|-----------|------------------------------|-------|
-| 1 | `drivers/char/hw_random/timeriomem-rng.c` | ~200 | platform driver (`rust/kernel/platform.rs`), needs a new thin `hwrng` abstraction | Good first "add an abstraction + port a driver" pair; no `hwrng` bindings exist yet in `rust/kernel/`, so step 1 is a small, separately-reviewed abstraction PR |
-| 2 | A `samples/rust/rust_driver_platform.rs`-style simple platform driver already in `drivers/` with no complex DMA/IRQ | varies | platform | pick one during triage |
-| 3 | A simple `drivers/nvmem/` provider not yet in Rust | small | nvmem already has Rust examples in-tree | follow existing Rust nvmem provider as a template |
-| 4 | A simple `drivers/hwmon/` sensor driver (I2C, no complex state machine) | small-medium | I2C abstraction (`rust/kernel/i2c.rs`-equivalent, see `samples/rust/rust_i2c_client.rs`) | |
-| 5 | A `drivers/watchdog/` driver (subsystem already has some Rust usage) | small-medium | watchdog Kconfig already references rust | |
+| 1 | `drivers/char/hw_random/timeriomem-rng.c` | ~200 | platform driver (`rust/kernel/platform.rs`) + hwrng (`rust/kernel/hwrng.rs`) | the `hwrng` abstraction has landed (`rust/kernel/hwrng.rs`; issue #1 closed), so this is now a plain port — issue #2 |
+| 2 | A `samples/rust/rust_driver_platform.rs`-style simple platform driver already in `drivers/` with no complex DMA/IRQ | varies | platform (`rust/kernel/platform.rs`) | pick one during triage |
+| 3 | A simple `drivers/nvmem/` provider not yet in Rust | small | **needs abstraction** — no nvmem bindings exist in `rust/kernel/`, and no Rust nvmem provider in-tree (the old "already has Rust examples" claim was a false `grep` match on "tr**u**st**e**d") | step 0: add an nvmem abstraction to `rust/kernel/` (separate PR), then port a simple provider |
+| 4 | A simple `drivers/hwmon/` sensor driver (I2C, no complex state machine) | small-medium | I2C (`rust/kernel/i2c.rs`, see `samples/rust/rust_i2c_client.rs`) | |
+| 5 | A `drivers/watchdog/` driver | small-medium | **needs abstraction** — no watchdog bindings exist in `rust/kernel/` (the old "Kconfig references rust" claim was a false `grep` match on "ARM-T**rust**ed-Firmware") | step 0: issue #11 (watchdog abstraction + sample), then port a simple driver |
+| 6 | `drivers/misc/pvpanic/pvpanic-pci.c` | 49 | pci (`rust/kernel/pci.rs`) | **blocked on #9** (`dev_groups` support in driver-core): without it the port would drop the `events`/`capability` sysfs files (`pvpanic_dev_groups` in `drivers/misc/pvpanic/pvpanic.c:178`), breaking rule 3. QEMU-testable (`-device pvpanic-pci`, vendor 0x1b36 / device 0x0011). Issue #10 |
+| 7 | `drivers/misc/pvpanic/pvpanic-mmio.c` | 74 | platform (`rust/kernel/platform.rs`) | **blocked on #9** (`dev_groups` support, `pvpanic_dev_groups`); QEMU-testable (`-device pvpanic-mmio`). File its GitHub issue at triage time (labeled `needs-abstraction` until #9 lands) |
 
 Issues are filed on GitHub per candidate once triaged, labeled
 `difficulty:N`, `subsystem:<name>`, and `needs-abstraction` when step 0
