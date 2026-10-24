@@ -76,9 +76,13 @@ on `main`, 2026-10-24 — per ground rule 7):
 - **Firmware & config**: `firmware.rs`, `configfs.rs`, `debugfs.rs`
 - **Discovery**: `of.rs`, `acpi.rs`
 
-Verified **absent**: there is no `rust/kernel/drm.rs` (`rust/kernel/gpu.rs`
-only holds the GPU buddy allocator), and no nvmem or watchdog abstraction
-anywhere in `rust/kernel/`. `grep -ril rust drivers/nvmem/` matches only the
+Directory-based abstractions also exist: `drm/` (DRM device, driver, file,
+GEM, GPUVM, ioctl; used by `drivers/gpu/drm/nova` and `tyr`), `block/`,
+`io/`, `irq/`, `fs/`, `mm/`, `net/` and others; `ls -d rust/kernel/*/`
+lists them all. `rust/kernel/gpu.rs` only holds the GPU buddy allocator.
+
+Verified **absent**: there is no nvmem or watchdog abstraction anywhere in
+`rust/kernel/`. `grep -ril rust drivers/nvmem/` matches only the
 Kconfig substring "t**rust**ed application"; `drivers/watchdog/Kconfig`
 matches only "ARM-T**rust**ed-Firmware".
 
@@ -86,11 +90,11 @@ matches only "ARM-T**rust**ed-Firmware".
 |---|--------|-----------|------------------------------|-------|
 | 1 | `drivers/char/hw_random/timeriomem-rng.c` | ~200 | platform driver (`rust/kernel/platform.rs`) + hwrng (`rust/kernel/hwrng.rs`) | the `hwrng` abstraction has landed (`rust/kernel/hwrng.rs`; issue #1 closed), so this is now a plain port — issue #2 |
 | 2 | A `samples/rust/rust_driver_platform.rs`-style simple platform driver already in `drivers/` with no complex DMA/IRQ | varies | platform (`rust/kernel/platform.rs`) | pick one during triage |
-| 3 | A simple `drivers/nvmem/` provider not yet in Rust | small | **needs abstraction** — no nvmem bindings exist in `rust/kernel/`, and no Rust nvmem provider in-tree (the old "already has Rust examples" claim was a false `grep` match on "tr**u**st**e**d") | step 0: add an nvmem abstraction to `rust/kernel/` (separate PR), then port a simple provider |
+| 3 | A simple `drivers/nvmem/` provider not yet in Rust | small | **needs abstraction** — no nvmem bindings exist in `rust/kernel/`, and no Rust nvmem provider in-tree (the old "already has Rust examples" claim was a false `grep` match on "t**rust**ed") | step 0: add an nvmem abstraction to `rust/kernel/` (separate PR), then port a simple provider |
 | 4 | A simple `drivers/hwmon/` sensor driver (I2C, no complex state machine) | small-medium | I2C (`rust/kernel/i2c.rs`, see `samples/rust/rust_i2c_client.rs`) | |
 | 5 | A `drivers/watchdog/` driver | small-medium | **needs abstraction** — no watchdog bindings exist in `rust/kernel/` (the old "Kconfig references rust" claim was a false `grep` match on "ARM-T**rust**ed-Firmware") | step 0: issue #11 (watchdog abstraction + sample), then port a simple driver |
 | 6 | `drivers/misc/pvpanic/pvpanic-pci.c` | 49 | pci (`rust/kernel/pci.rs`) | **blocked on #9** (`dev_groups` support in driver-core): without it the port would drop the `events`/`capability` sysfs files (`pvpanic_dev_groups` in `drivers/misc/pvpanic/pvpanic.c:178`), breaking rule 3. QEMU-testable (`-device pvpanic-pci`, vendor 0x1b36 / device 0x0011). Issue #10 |
-| 7 | `drivers/misc/pvpanic/pvpanic-mmio.c` | 74 | platform (`rust/kernel/platform.rs`) | **blocked on #9** (`dev_groups` support, `pvpanic_dev_groups`); QEMU-testable (`-device pvpanic-mmio`). File its GitHub issue at triage time (labeled `needs-abstraction` until #9 lands) |
+| 7 | `drivers/misc/pvpanic/pvpanic-mmio.c` | 74 | platform (`rust/kernel/platform.rs`) | **blocked on #9** (`dev_groups` support, `pvpanic_dev_groups`); QEMU-testable with the ISA device `-device pvpanic` (described in ACPI as `QEMU0001`, which this driver matches; there is no `pvpanic-mmio` device on x86 QEMU). File its GitHub issue at triage time (labeled `needs-abstraction` until #9 lands) |
 
 Issues are filed on GitHub per candidate once triaged, labeled
 `difficulty:N`, `subsystem:<name>`, and `needs-abstraction` when step 0
