@@ -10,7 +10,7 @@
 //! `/dev/hwrng`.
 
 use kernel::{
-    hwrng::{HwRngOptions, HwRngRegistration, Operations},
+    hwrng::{HwRngName, HwRngOptions, HwRngRegistration, Operations},
     prelude::*,
     sync::atomic::{Atomic, Relaxed},
 };
@@ -76,7 +76,7 @@ impl kernel::Module for RustHwRng {
             GFP_KERNEL,
         )?;
         let opts = HwRngOptions {
-            name: c"rust_hwrng",
+            name: HwRngName::Static(c"rust_hwrng"),
             quality: 0,
         };
         let rng = KBox::pin_init(

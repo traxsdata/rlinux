@@ -11,7 +11,7 @@
 
 use kernel::{
     device::Core,
-    hwrng::{HwRngOptions, HwRngRegistration, Operations},
+    hwrng::{HwRngName, HwRngOptions, HwRngRegistration, Operations},
     io::{
         mem::IoMem,
         Io, //
@@ -154,14 +154,13 @@ impl platform::Driver for XipheraTrngDriver {
 
         let trng = KBox::new(XipheraTrng { mmio }, GFP_KERNEL)?;
 
+        // Register the hwrng under the device name (e.g. "43c00000.trng"): that is what
+        // userspace sees and switches with rng_current, and it keeps the name unique per
+        // device, while the registration owns the buffer for the bound scope.
+        let name = HwRngName::Owned(dev.name().to_cstring()?);
+
         let rng = match KBox::pin_init(
-            HwRngRegistration::register(
-                HwRngOptions {
-                    name: c"xiphera-trng",
-                    quality: 900,
-                },
-                trng,
-            ),
+            HwRngRegistration::register(HwRngOptions { name, quality: 900 }, trng),
             GFP_KERNEL,
         ) {
             Ok(rng) => rng,
